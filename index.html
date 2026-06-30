@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Storie Insights · ABMedia</title>
+  <link rel="icon" type="image/png" href="assets/logo.png" />
+  <link rel="apple-touch-icon" href="assets/logo.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css?v=1" />
+</head>
+<body>
+  <!-- LOGIN -->
+  <div id="loginScreen" class="login hidden">
+    <div class="login-box">
+      <div class="brand login-brand">
+        <span class="logo"><img src="assets/logo.png" alt="ABMedia" class="logo-img" /></span>
+        <div class="brand-text">
+          <strong>Storie Insights</strong>
+          <small>by ABMedia</small>
+        </div>
+      </div>
+      <h2 id="loginTitle">Inicia sesión</h2>
+      <p class="login-sub">Entra con la cuenta que ya usas en Sequence Builder.</p>
+      <label class="field"><span>Email</span><input type="email" id="loginEmail" autocomplete="email" /></label>
+      <label class="field"><span>Contraseña</span><input type="password" id="loginPass" autocomplete="current-password" /></label>
+      <p id="loginError" class="login-err"></p>
+      <button class="btn btn-primary full" id="loginBtn">Entrar</button>
+      <a href="https://sequencebuilder.abmedia.es" class="btn btn-ghost full">← Sequence Builder</a>
+    </div>
+  </div>
+
+  <!-- NO AUTORIZADO -->
+  <div id="notAllowed" class="login hidden">
+    <div class="login-box">
+      <div class="brand login-brand">
+        <span class="logo"><img src="assets/logo.png" alt="ABMedia" class="logo-img" /></span>
+        <div class="brand-text"><strong>Storie Insights</strong><small>by ABMedia</small></div>
+      </div>
+      <h2>Cuenta pendiente</h2>
+      <p class="login-sub">Tu email todavía no tiene acceso. Contacta con ABMedia para activarlo.</p>
+      <p class="login-sub" id="notAllowedEmail"></p>
+      <button class="btn btn-primary full" id="notAllowedLogout">Cerrar sesión</button>
+    </div>
+  </div>
+
+  <!-- APP -->
+  <div class="app hidden" id="appRoot">
+    <aside class="sidebar">
+      <div class="brand">
+        <span class="logo"><img src="assets/logo.png" alt="ABMedia" class="logo-img" /></span>
+        <div class="brand-text">
+          <strong>Storie Insights</strong>
+          <small>by ABMedia</small>
+        </div>
+      </div>
+      <nav class="nav">
+        <a class="nav-item active" data-view="dashboard">
+          <svg class="ni" viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="9" rx="2"/><rect x="13" y="3" width="8" height="5" rx="2"/><rect x="13" y="10" width="8" height="11" rx="2"/><rect x="3" y="14" width="8" height="7" rx="2"/></svg>
+          <span>Dashboard</span>
+        </a>
+        <a class="nav-item" data-view="sequences">
+          <svg class="ni" viewBox="0 0 24 24"><rect x="3" y="4" width="4" height="16" rx="1"/><rect x="9" y="4" width="4" height="16" rx="1"/><rect x="15" y="6" width="6" height="14" rx="1"/></svg>
+          <span>Por secuencia</span>
+        </a>
+        <a class="nav-item" data-view="today">
+          <svg class="ni" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 6 V12 L16 14"/></svg>
+          <span>Hoy (24h)</span>
+        </a>
+        <a class="nav-item" data-view="history">
+          <svg class="ni" viewBox="0 0 24 24"><path d="M3 17 L9 11 L13 15 L21 7"/><path d="M21 11 V7 H17"/></svg>
+          <span>Histórico</span>
+        </a>
+        <a class="nav-item" data-view="connections">
+          <svg class="ni" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17" cy="7" r="1.2" fill="currentColor"/></svg>
+          <span>Conexiones IG</span>
+        </a>
+        <a class="nav-item hidden" data-view="admin" id="adminTab">
+          <svg class="ni" viewBox="0 0 24 24"><path d="M12 2 L20 5 V11 C20 16 16.5 20 12 22 C7.5 20 4 16 4 11 V5 Z"/></svg>
+          <span>Admin (todos)</span>
+        </a>
+      </nav>
+      <div class="sidebar-foot">
+        <a class="btn btn-ghost xs full" href="https://sequencebuilder.abmedia.es">← Sequence Builder</a>
+        <div class="user-mini">
+          <span id="userEmail"></span>
+          <button class="btn btn-ghost xs" id="logoutBtn">Salir</button>
+        </div>
+      </div>
+    </aside>
+
+    <main class="content">
+      <!-- DASHBOARD -->
+      <section id="view-dashboard">
+        <header class="topbar">
+          <div>
+            <h1>Dashboard</h1>
+            <p>Tus 7 frameworks de story sequences medidos. Aprende qué funciona, replica.</p>
+          </div>
+          <button class="btn btn-primary" id="syncBtn">🔄 Sincronizar Instagram</button>
+        </header>
+
+        <div id="noConn" class="empty-state hidden">
+          <div class="es-icon">📊</div>
+          <h2>Conecta tu Instagram para empezar</h2>
+          <p>Necesitamos vincular tu IG Business o Creator para leer las métricas de tus stories.</p>
+          <button class="btn btn-primary" id="connectIgBtn">📷 Conectar Instagram</button>
+          <p class="es-sub">Solo funciona con cuentas <strong>Business o Creator</strong> vinculadas a una página de Facebook.</p>
+        </div>
+
+        <div id="dashContent" class="hidden">
+          <!-- KPIs -->
+          <div class="kpi-grid">
+            <div class="kpi"><span class="kpi-lbl">Stories últimos 7 días</span><span class="kpi-val" id="kpiStories">—</span></div>
+            <div class="kpi"><span class="kpi-lbl">Alcance total</span><span class="kpi-val" id="kpiReach">—</span></div>
+            <div class="kpi"><span class="kpi-lbl">Completion rate medio</span><span class="kpi-val" id="kpiCompletion">—</span></div>
+            <div class="kpi"><span class="kpi-lbl">DMs generados</span><span class="kpi-val" id="kpiReplies">—</span></div>
+          </div>
+
+          <!-- Por categoría -->
+          <div class="section">
+            <h2 class="sect-h">Por categoría (Sequence Builder)</h2>
+            <div id="catBreakdown" class="cat-stats"></div>
+          </div>
+
+          <!-- Top secuencias -->
+          <div class="section">
+            <h2 class="sect-h">🏆 Top secuencias por completion</h2>
+            <div id="topSeqs" class="seq-list"></div>
+          </div>
+
+          <!-- AI insights -->
+          <div class="section">
+            <h2 class="sect-h">💡 Insights automáticos</h2>
+            <div id="aiInsights" class="insight-list"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- POR SECUENCIA -->
+      <section id="view-sequences" class="hidden">
+        <header class="topbar">
+          <div>
+            <h1>Por secuencia</h1>
+            <p>Métricas agregadas de cada secuencia que has publicado.</p>
+          </div>
+        </header>
+        <div id="seqMetrics" class="grid"></div>
+      </section>
+
+      <!-- HOY -->
+      <section id="view-today" class="hidden">
+        <header class="topbar">
+          <div>
+            <h1>Stories últimas 24h</h1>
+            <p>Tus stories vivas ahora mismo con su completion y drop-off en vivo.</p>
+          </div>
+          <span class="pill" id="todayCount">0</span>
+        </header>
+        <div id="todayList" class="story-list"></div>
+      </section>
+
+      <!-- HISTÓRICO -->
+      <section id="view-history" class="hidden">
+        <header class="topbar">
+          <div>
+            <h1>Histórico</h1>
+            <p>Tendencias y comparativas a lo largo del tiempo.</p>
+          </div>
+          <select id="histRange" class="status-select">
+            <option value="7">Últimos 7 días</option>
+            <option value="30" selected>Últimos 30 días</option>
+            <option value="90">Últimos 90 días</option>
+          </select>
+        </header>
+        <div class="history-grid">
+          <div class="hist-block">
+            <h3>Evolución de alcance</h3>
+            <div id="chartReach" class="chart-box"></div>
+          </div>
+          <div class="hist-block">
+            <h3>Completion rate por semana</h3>
+            <div id="chartCompletion" class="chart-box"></div>
+          </div>
+          <div class="hist-block">
+            <h3>DMs generados</h3>
+            <div id="chartReplies" class="chart-box"></div>
+          </div>
+          <div class="hist-block">
+            <h3>Performance por framework</h3>
+            <div id="chartFrameworks" class="chart-box"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- CONEXIONES -->
+      <section id="view-connections" class="hidden">
+        <header class="topbar">
+          <div>
+            <h1>Conexiones de Instagram</h1>
+            <p>Gestiona las cuentas IG que tienes conectadas.</p>
+          </div>
+          <button class="btn btn-primary" id="connectIgBtn2">＋ Conectar nueva cuenta</button>
+        </header>
+        <div id="connList" class="conn-list"></div>
+        <div class="info-block">
+          <h3>📌 Importante</h3>
+          <ul>
+            <li>Tu cuenta de Instagram debe ser <strong>Business o Creator</strong> (no Personal)</li>
+            <li>Debe estar vinculada a una <strong>página de Facebook</strong> que administres</li>
+            <li>Sincronizamos automáticamente cada noche. Las stories caducan en 24h y guardamos sus métricas para siempre</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- ADMIN -->
+      <section id="view-admin" class="hidden">
+        <header class="topbar">
+          <div>
+            <h1>Admin · todos los clientes</h1>
+            <p>Visión global de las conexiones IG y métricas de todos los clientes.</p>
+          </div>
+        </header>
+        <div id="adminGrid" class="grid"></div>
+      </section>
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase.js?v=1"></script>
+  <script src="app.js?v=1"></script>
+</body>
+</html>
