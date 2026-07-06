@@ -1,235 +1,695 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Storie Insights · ABMedia</title>
-  <link rel="icon" type="image/png" href="assets/logo.png" />
-  <link rel="apple-touch-icon" href="assets/logo.png" />
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=1" />
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Sequence Insights · ABMedia</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0a0a0a; --bg-2:#111112; --bg-3:#161618; --border:#232326; --border-2:#2b2b2f;
+  --text:#f5f5f5; --muted:#a3a3a3; --muted-2:#6b6b70;
+  --accent:#ff6b35; --accent-2:#ff8a5c; --accent-dim:rgba(255,107,53,.15);
+  --green:#22c55e; --red:#ef4444; --yellow:#eab308;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--bg);color:var(--text);font-family:'Poppins',system-ui,-apple-system,sans-serif;font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+a{color:inherit;text-decoration:none}
+button{font-family:inherit;font-size:inherit;color:inherit;background:none;border:none;cursor:pointer}
+input,select{font-family:inherit;color:inherit;background:var(--bg-3);border:1px solid var(--border);border-radius:8px;padding:8px 12px;outline:none;font-size:13px}
+input:focus,select:focus{border-color:var(--accent)}
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border-2);border-radius:4px}
+
+#app{display:flex;min-height:100vh}
+.sidebar{width:240px;background:var(--bg-2);border-right:1px solid var(--border);padding:24px 16px;position:fixed;left:0;top:0;bottom:0;display:flex;flex-direction:column;z-index:10}
+.brand{display:flex;align-items:center;gap:12px;padding:0 8px 24px 8px;border-bottom:1px solid var(--border);margin-bottom:16px}
+.brand-logo{width:36px;height:36px;border-radius:8px;background:linear-gradient(135deg,var(--accent) 0%,#ff4d1f 100%);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:16px;color:#0a0a0a;flex-shrink:0}
+.brand-name{font-weight:700;font-size:15px;line-height:1.15}
+.brand-sub{font-size:11px;color:var(--muted);font-weight:500;letter-spacing:.02em}
+.nav{display:flex;flex-direction:column;gap:2px;flex:1}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;color:var(--muted);font-size:13px;font-weight:500;cursor:pointer;transition:.12s}
+.nav-item:hover{background:var(--bg-3);color:var(--text)}
+.nav-item.active{background:var(--accent-dim);color:var(--accent)}
+.nav-item svg{width:16px;height:16px;flex-shrink:0}
+.user-box{border-top:1px solid var(--border);padding-top:16px;display:flex;flex-direction:column;gap:8px;font-size:12px;color:var(--muted)}
+.user-email{font-size:11px;word-break:break-all;line-height:1.35}
+.logout{background:var(--bg-3);border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:11px;color:var(--muted);text-align:center;transition:.12s}
+.logout:hover{color:var(--red);border-color:var(--red)}
+
+.main{margin-left:240px;flex:1;padding:32px 40px;min-width:0}
+.page-header{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:24px}
+.page-title{font-size:28px;font-weight:700;letter-spacing:-.01em}
+.page-sub{font-size:13px;color:var(--muted);margin-top:4px}
+
+.btn{display:inline-flex;align-items:center;gap:8px;padding:9px 14px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;transition:.12s;border:1px solid transparent;white-space:nowrap}
+.btn-primary{background:var(--accent);color:#0a0a0a}
+.btn-primary:hover{background:var(--accent-2)}
+.btn-primary:disabled{background:var(--bg-3);color:var(--muted);cursor:not-allowed}
+.btn-ghost{background:var(--bg-3);border-color:var(--border);color:var(--text)}
+.btn-ghost:hover{border-color:var(--accent);color:var(--accent)}
+.btn-ghost.active{background:var(--accent-dim);border-color:var(--accent);color:var(--accent)}
+.spinner{width:14px;height:14px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.pulse{animation:pulse 1.6s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:24px}
+.kpi{background:var(--bg-2);border:1px solid var(--border);border-radius:12px;padding:16px 18px}
+.kpi-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;font-weight:600;margin-bottom:6px}
+.kpi-value{font-size:26px;font-weight:700;letter-spacing:-.02em;color:var(--accent);line-height:1.15}
+.kpi-value.text{color:var(--text)}
+.kpi-hint{font-size:11px;color:var(--muted-2);margin-top:4px}
+
+.filter-bar{display:flex;gap:8px;align-items:center;margin-bottom:20px;flex-wrap:wrap}
+.chip{padding:7px 14px;border-radius:20px;background:var(--bg-3);border:1px solid var(--border);color:var(--muted);font-size:12px;font-weight:600;cursor:pointer;transition:.12s}
+.chip:hover{color:var(--text);border-color:var(--border-2)}
+.chip.active{background:var(--accent-dim);border-color:var(--accent);color:var(--accent)}
+.range-inputs{display:none;gap:6px;align-items:center}
+.range-inputs.show{display:flex}
+.range-inputs input{font-size:12px;padding:6px 10px}
+
+.section{background:var(--bg-2);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:20px}
+.section-title{font-size:15px;font-weight:600;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center}
+
+.cal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.cal-nav{display:flex;gap:6px;align-items:center}
+.cal-nav button{width:32px;height:32px;border-radius:8px;background:var(--bg-3);border:1px solid var(--border);display:flex;align-items:center;justify-content:center}
+.cal-nav button:hover{border-color:var(--accent);color:var(--accent)}
+.cal-month{font-weight:600;font-size:15px;min-width:150px;text-align:center;text-transform:capitalize}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.cal-dow{font-size:10px;color:var(--muted-2);text-align:center;padding:6px 0;text-transform:uppercase;letter-spacing:.05em;font-weight:600}
+.cal-cell{aspect-ratio:1;background:var(--bg-3);border:1px solid var(--border);border-radius:8px;padding:6px;display:flex;flex-direction:column;justify-content:space-between;position:relative;cursor:default;transition:.12s;overflow:hidden}
+.cal-cell.other-month{opacity:.3}
+.cal-cell.has-seq{cursor:pointer;border-color:var(--accent-dim)}
+.cal-cell.has-seq:hover{border-color:var(--accent);transform:translateY(-2px)}
+.cal-cell.today{outline:1.5px solid var(--accent);outline-offset:-1.5px}
+.cal-date{font-size:11px;color:var(--muted);font-weight:600;position:relative;z-index:2}
+.cal-cell.has-seq .cal-date{color:#fff}
+.cal-badges{display:flex;gap:4px;flex-wrap:wrap;position:relative;z-index:2}
+.cal-badge{background:rgba(0,0,0,.7);color:#fff;font-size:9px;font-weight:600;padding:2px 5px;border-radius:4px;backdrop-filter:blur(4px)}
+
+.seq-row{display:grid;grid-template-columns:60px 1fr auto auto auto auto;gap:16px;padding:12px 14px;background:var(--bg-3);border:1px solid var(--border);border-radius:10px;margin-bottom:8px;align-items:center;cursor:pointer;transition:.12s}
+.seq-row:hover{border-color:var(--accent)}
+.seq-thumb{width:60px;height:60px;border-radius:8px;background:var(--bg);background-size:cover;background-position:center;flex-shrink:0;border:1px solid var(--border)}
+.seq-meta{min-width:0}
+.seq-date{font-weight:600;font-size:13px}
+.seq-time{font-size:11px;color:var(--muted);margin-top:2px}
+.seq-stat{text-align:right;min-width:60px}
+.seq-stat-v{font-weight:700;color:var(--accent);font-size:15px}
+.seq-stat-l{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+
+.seq-strip{display:flex;gap:0;align-items:center;overflow-x:auto;padding:8px 0 16px 0}
+.story-card{flex:0 0 180px;background:var(--bg-2);border:1px solid var(--border);border-radius:12px;overflow:hidden;position:relative}
+.story-media{width:100%;aspect-ratio:9/16;background:var(--bg);background-size:cover;background-position:center}
+.story-pos{position:absolute;top:8px;left:8px;background:rgba(0,0,0,.8);color:#fff;font-size:11px;font-weight:700;padding:3px 8px;border-radius:12px;backdrop-filter:blur(6px)}
+.story-body{padding:12px}
+.story-label-input{width:100%;background:var(--bg-3);border:1px solid var(--border);border-radius:6px;padding:6px 8px;font-size:12px;color:var(--text);margin-bottom:8px}
+.story-label-input:focus{border-color:var(--accent)}
+.story-stats{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.story-stat{background:var(--bg-3);border-radius:6px;padding:6px 8px}
+.story-stat-l{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:600}
+.story-stat-v{font-size:13px;font-weight:700;margin-top:1px}
+
+.arrow{flex:0 0 60px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 8px}
+.arrow svg{width:24px;height:24px;color:var(--muted)}
+.arrow-pct{font-size:11px;font-weight:700;margin-top:4px;padding:2px 8px;border-radius:10px}
+.arrow-pct.drop{background:rgba(239,68,68,.15);color:var(--red)}
+.arrow-pct.gain{background:rgba(34,197,94,.15);color:var(--green)}
+.arrow-pct.neutral{background:var(--bg-3);color:var(--muted)}
+
+.auth-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:40px}
+.auth-card{width:100%;max-width:400px;background:var(--bg-2);border:1px solid var(--border);border-radius:16px;padding:32px}
+.auth-title{font-size:22px;font-weight:700;margin-bottom:6px}
+.auth-sub{font-size:13px;color:var(--muted);margin-bottom:24px}
+.auth-form{display:flex;flex-direction:column;gap:12px}
+.auth-form input{padding:11px 14px;font-size:14px}
+.auth-form button{padding:11px 14px;font-size:14px;justify-content:center}
+.auth-alt{margin-top:16px;font-size:12px;color:var(--muted);text-align:center}
+.auth-alt button{color:var(--accent);font-weight:600}
+
+.conn-card{background:var(--bg-3);border:1px solid var(--border);border-radius:10px;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:8px}
+.conn-info{min-width:0}
+.conn-user{font-weight:600;font-size:14px}
+.conn-meta{font-size:11px;color:var(--muted);margin-top:2px}
+.conn-actions{display:flex;gap:8px;flex-shrink:0}
+
+.empty{padding:40px 20px;text-align:center;color:var(--muted);font-size:13px}
+.badge-token{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600;background:var(--bg-3);color:var(--muted)}
+.badge-token.ok{background:rgba(34,197,94,.12);color:var(--green)}
+.badge-token.warn{background:rgba(234,179,8,.12);color:var(--yellow)}
+.badge-token.err{background:rgba(239,68,68,.12);color:var(--red)}
+.toast{position:fixed;bottom:24px;right:24px;background:var(--bg-2);border:1px solid var(--border);border-radius:10px;padding:12px 16px;font-size:13px;z-index:100;box-shadow:0 8px 24px rgba(0,0,0,.4);animation:slideup .25s ease-out}
+.toast.ok{border-color:var(--green)}
+.toast.err{border-color:var(--red)}
+@keyframes slideup{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
+
+@media(max-width:900px){
+  .sidebar{position:static;width:100%;height:auto;flex-direction:row;overflow-x:auto;padding:12px}
+  .brand{padding:0 12px 0 0;border-bottom:none;border-right:1px solid var(--border);margin-bottom:0;margin-right:12px}
+  .nav{flex-direction:row;flex-wrap:nowrap}
+  .user-box{display:none}
+  .main{margin-left:0;padding:20px}
+}
+</style>
 </head>
 <body>
-  <!-- LOGIN -->
-  <div id="loginScreen" class="login hidden">
-    <div class="login-box">
-      <div class="brand login-brand">
-        <span class="logo"><img src="assets/logo.png" alt="ABMedia" class="logo-img" /></span>
-        <div class="brand-text">
-          <strong>Storie Insights</strong>
-          <small>by ABMedia</small>
-        </div>
-      </div>
-      <h2 id="loginTitle">Inicia sesión</h2>
-      <p class="login-sub">Entra con la cuenta que ya usas en Sequence Builder.</p>
-      <label class="field"><span>Email</span><input type="email" id="loginEmail" autocomplete="email" /></label>
-      <label class="field"><span>Contraseña</span><input type="password" id="loginPass" autocomplete="current-password" /></label>
-      <p id="loginError" class="login-err"></p>
-      <button class="btn btn-primary full" id="loginBtn">Entrar</button>
-      <a href="https://sequencebuilder.abmedia.es" class="btn btn-ghost full">← Sequence Builder</a>
-    </div>
-  </div>
+<div id="app"></div>
 
-  <!-- NO AUTORIZADO -->
-  <div id="notAllowed" class="login hidden">
-    <div class="login-box">
-      <div class="brand login-brand">
-        <span class="logo"><img src="assets/logo.png" alt="ABMedia" class="logo-img" /></span>
-        <div class="brand-text"><strong>Storie Insights</strong><small>by ABMedia</small></div>
-      </div>
-      <h2>Cuenta pendiente</h2>
-      <p class="login-sub">Tu email todavía no tiene acceso. Contacta con ABMedia para activarlo.</p>
-      <p class="login-sub" id="notAllowedEmail"></p>
-      <button class="btn btn-primary full" id="notAllowedLogout">Cerrar sesión</button>
-    </div>
-  </div>
+<script type="module">
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
 
-  <!-- APP -->
-  <div class="app hidden" id="appRoot">
-    <aside class="sidebar">
-      <div class="brand">
-        <span class="logo"><img src="assets/logo.png" alt="ABMedia" class="logo-img" /></span>
-        <div class="brand-text">
-          <strong>Storie Insights</strong>
-          <small>by ABMedia</small>
-        </div>
-      </div>
-      <nav class="nav">
-        <a class="nav-item active" data-view="dashboard">
-          <svg class="ni" viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="9" rx="2"/><rect x="13" y="3" width="8" height="5" rx="2"/><rect x="13" y="10" width="8" height="11" rx="2"/><rect x="3" y="14" width="8" height="7" rx="2"/></svg>
-          <span>Dashboard</span>
-        </a>
-        <a class="nav-item" data-view="sequences">
-          <svg class="ni" viewBox="0 0 24 24"><rect x="3" y="4" width="4" height="16" rx="1"/><rect x="9" y="4" width="4" height="16" rx="1"/><rect x="15" y="6" width="6" height="14" rx="1"/></svg>
-          <span>Por secuencia</span>
-        </a>
-        <a class="nav-item" data-view="today">
-          <svg class="ni" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 6 V12 L16 14"/></svg>
-          <span>Hoy (24h)</span>
-        </a>
-        <a class="nav-item" data-view="history">
-          <svg class="ni" viewBox="0 0 24 24"><path d="M3 17 L9 11 L13 15 L21 7"/><path d="M21 11 V7 H17"/></svg>
-          <span>Histórico</span>
-        </a>
-        <a class="nav-item" data-view="connections">
-          <svg class="ni" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17" cy="7" r="1.2" fill="currentColor"/></svg>
-          <span>Conexiones IG</span>
-        </a>
-        <a class="nav-item hidden" data-view="admin" id="adminTab">
-          <svg class="ni" viewBox="0 0 24 24"><path d="M12 2 L20 5 V11 C20 16 16.5 20 12 22 C7.5 20 4 16 4 11 V5 Z"/></svg>
-          <span>Admin (todos)</span>
-        </a>
-      </nav>
-      <div class="sidebar-foot">
-        <a class="btn btn-ghost xs full" href="https://sequencebuilder.abmedia.es">← Sequence Builder</a>
-        <div class="user-mini">
-          <span id="userEmail"></span>
-          <button class="btn btn-ghost xs" id="logoutBtn">Salir</button>
-        </div>
-      </div>
-    </aside>
+const SUPABASE_URL = 'https://jiuhhnjpggdcjyjchxir.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImppdWhobmpwZ2dkY2p5amNoeGlyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI1NTYzMjEsImV4cCI6MjA5ODEzMjMyMX0.ve8jBPE4QyrwPTAIoC04-9bUaGtRhScO6XZFepG44Us';
+const ADMIN_EMAILS = ['abmmediacontact@gmail.com'];
 
-    <main class="content">
-      <!-- DASHBOARD -->
-      <section id="view-dashboard">
-        <header class="topbar">
-          <div>
-            <h1>Dashboard</h1>
-            <p>Tus 7 frameworks de story sequences medidos. Aprende qué funciona, replica.</p>
-          </div>
-          <button class="btn btn-primary" id="syncBtn">🔄 Sincronizar Instagram</button>
-        </header>
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
-        <div id="noConn" class="empty-state hidden">
-          <div class="es-icon">📊</div>
-          <h2>Conecta tu Instagram para empezar</h2>
-          <p>Necesitamos vincular tu IG Business o Creator para leer las métricas de tus stories.</p>
-          <button class="btn btn-primary" id="connectIgBtn">📷 Conectar Instagram</button>
-          <p class="es-sub">Solo funciona con cuentas <strong>Business o Creator</strong> vinculadas a una página de Facebook.</p>
-        </div>
+const state = {
+  session: null, user: null, isAdmin: false,
+  view: 'dashboard', filter: '7d',
+  customFrom: null, customTo: null,
+  calYear: null, calMonth: null,
+  detail: null, connections: [],
+  syncing: {}, lastSyncAt: {},
+};
 
-        <div id="dashContent" class="hidden">
-          <!-- KPIs -->
-          <div class="kpi-grid">
-            <div class="kpi"><span class="kpi-lbl">Stories últimos 7 días</span><span class="kpi-val" id="kpiStories">—</span></div>
-            <div class="kpi"><span class="kpi-lbl">Alcance total</span><span class="kpi-val" id="kpiReach">—</span></div>
-            <div class="kpi"><span class="kpi-lbl">Completion rate medio</span><span class="kpi-val" id="kpiCompletion">—</span></div>
-            <div class="kpi"><span class="kpi-lbl">DMs generados</span><span class="kpi-val" id="kpiReplies">—</span></div>
-          </div>
+const el = (tag, attrs = {}, ...children) => {
+  const e = document.createElement(tag);
+  for (const k in attrs) {
+    if (k === 'class') e.className = attrs[k];
+    else if (k === 'style') e.style.cssText = attrs[k];
+    else if (k.startsWith('on')) e.addEventListener(k.slice(2), attrs[k]);
+    else if (k === 'html') e.innerHTML = attrs[k];
+    else if (attrs[k] != null) e.setAttribute(k, attrs[k]);
+  }
+  for (const c of children.flat()) {
+    if (c == null || c === false) continue;
+    e.appendChild(typeof c === 'string' ? document.createTextNode(c) : c);
+  }
+  return e;
+};
 
-          <!-- Por categoría -->
-          <div class="section">
-            <h2 class="sect-h">Por categoría (Sequence Builder)</h2>
-            <div id="catBreakdown" class="cat-stats"></div>
-          </div>
+const fmt = n => n == null ? '—' : Number(n).toLocaleString('es-ES');
+const fmtPct = n => n == null ? '—' : `${Number(n).toFixed(1)}%`;
+const fmtDate = d => new Date(d).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' });
+const fmtTime = d => new Date(d).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+const monthName = (y, m) => new Date(y, m, 1).toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
 
-          <!-- Top secuencias -->
-          <div class="section">
-            <h2 class="sect-h">🏆 Top secuencias por completion</h2>
-            <div id="topSeqs" class="seq-list"></div>
-          </div>
+function getRange() {
+  const now = new Date();
+  const to = new Date(now); to.setHours(23, 59, 59, 999);
+  let from;
+  if (state.filter === 'hoy') { from = new Date(now); from.setHours(0, 0, 0, 0); }
+  else if (state.filter === '7d')  { from = new Date(now); from.setDate(from.getDate() - 7); }
+  else if (state.filter === '30d') { from = new Date(now); from.setDate(from.getDate() - 30); }
+  else if (state.filter === '90d') { from = new Date(now); from.setDate(from.getDate() - 90); }
+  else if (state.filter === 'custom' && state.customFrom && state.customTo) {
+    return { from: new Date(state.customFrom).toISOString(), to: new Date(state.customTo).toISOString() };
+  } else { from = new Date(now); from.setDate(from.getDate() - 7); }
+  return { from: from.toISOString(), to: to.toISOString() };
+}
 
-          <!-- AI insights -->
-          <div class="section">
-            <h2 class="sect-h">💡 Insights automáticos</h2>
-            <div id="aiInsights" class="insight-list"></div>
-          </div>
-        </div>
-      </section>
+function toast(msg, type = 'ok') {
+  const t = el('div', { class: `toast ${type}` }, msg);
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 3200);
+}
 
-      <!-- POR SECUENCIA -->
-      <section id="view-sequences" class="hidden">
-        <header class="topbar">
-          <div>
-            <h1>Por secuencia</h1>
-            <p>Métricas agregadas de cada secuencia que has publicado.</p>
-          </div>
-        </header>
-        <div id="seqMetrics" class="grid"></div>
-      </section>
+const ICONS = {
+  home: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12l9-9 9 9M5 10v10h14V10"/></svg>',
+  cal:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>',
+  ig:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor"/></svg>',
+  shield:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l8 3v6c0 5-3.5 8.5-8 9-4.5-.5-8-4-8-9V6l8-3z"/></svg>',
+  sync: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 0115.5-6.4L21 8M21 3v5h-5M21 12a9 9 0 01-15.5 6.4L3 16M3 21v-5h5"/></svg>',
+  back: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 6l-6 6 6 6"/></svg>',
+  arrow: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M13 6l6 6-6 6"/></svg>',
+};
 
-      <!-- HOY -->
-      <section id="view-today" class="hidden">
-        <header class="topbar">
-          <div>
-            <h1>Stories últimas 24h</h1>
-            <p>Tus stories vivas ahora mismo con su completion y drop-off en vivo.</p>
-          </div>
-          <span class="pill" id="todayCount">0</span>
-        </header>
-        <div id="todayList" class="story-list"></div>
-      </section>
+async function loadKPIs() {
+  const { from, to } = getRange();
+  const { data, error } = await sb.rpc('get_dashboard_kpis', { from_date: from, to_date: to });
+  if (error) { console.error(error); return null; }
+  return (data && data[0]) || null;
+}
+async function loadSequences(fromISO, toISO) {
+  const { from, to } = fromISO && toISO ? { from: fromISO, to: toISO } : getRange();
+  const { data, error } = await sb.rpc('get_sequence_calendar', { from_date: from, to_date: to });
+  if (error) { console.error(error); return []; }
+  return data || [];
+}
+async function loadDetail(connectionId, seqNum) {
+  const { data, error } = await sb.rpc('get_sequence_detail', { p_connection_id: connectionId, p_seq_num: seqNum });
+  if (error) { console.error(error); return []; }
+  return data || [];
+}
+async function loadConnections() {
+  const { data, error } = await sb.from('ig_connections').select('*').order('created_at', { ascending: false });
+  if (error) { console.error(error); return []; }
+  return data || [];
+}
+async function updateLabel(storyMediaId, label) {
+  const { error } = await sb.from('ig_story_insights').update({ label }).eq('story_media_id', storyMediaId);
+  if (error) { console.error(error); toast('Error al guardar label', 'err'); return false; }
+  return true;
+}
+async function syncConnection(connId) {
+  state.syncing[connId] = true; render();
+  try {
+    const r = await fetch(`${SUPABASE_URL}/functions/v1/ig-sync-stories?conn=${connId}`, {
+      headers: { Authorization: `Bearer ${state.session.access_token}`, apikey: SUPABASE_ANON }
+    });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    state.lastSyncAt[connId] = new Date();
+    toast('Sync completada', 'ok');
+  } catch (e) { console.error(e); toast('Sync falló: ' + e.message, 'err'); }
+  finally { state.syncing[connId] = false; render(); }
+}
 
-      <!-- HISTÓRICO -->
-      <section id="view-history" class="hidden">
-        <header class="topbar">
-          <div>
-            <h1>Histórico</h1>
-            <p>Tendencias y comparativas a lo largo del tiempo.</p>
-          </div>
-          <select id="histRange" class="status-select">
-            <option value="7">Últimos 7 días</option>
-            <option value="30" selected>Últimos 30 días</option>
-            <option value="90">Últimos 90 días</option>
-          </select>
-        </header>
-        <div class="history-grid">
-          <div class="hist-block">
-            <h3>Evolución de alcance</h3>
-            <div id="chartReach" class="chart-box"></div>
-          </div>
-          <div class="hist-block">
-            <h3>Completion rate por semana</h3>
-            <div id="chartCompletion" class="chart-box"></div>
-          </div>
-          <div class="hist-block">
-            <h3>DMs generados</h3>
-            <div id="chartReplies" class="chart-box"></div>
-          </div>
-          <div class="hist-block">
-            <h3>Performance por framework</h3>
-            <div id="chartFrameworks" class="chart-box"></div>
-          </div>
-        </div>
-      </section>
+function viewAuth() {
+  let email = '', password = '', mode = 'password';
+  const wrap = el('div', { class: 'auth-wrap' });
+  const card = el('div', { class: 'auth-card' });
+  card.appendChild(el('div', { class: 'brand', style: 'border:none;padding:0;margin-bottom:20px' },
+    el('div', { class: 'brand-logo' }, 'S'),
+    el('div', {},
+      el('div', { class: 'brand-name' }, 'Sequence Insights'),
+      el('div', { class: 'brand-sub' }, 'ABMedia')
+    )
+  ));
+  card.appendChild(el('div', { class: 'auth-title' }, 'Entrar'));
+  card.appendChild(el('div', { class: 'auth-sub' }, 'Acceso a tus métricas de secuencias de stories.'));
+  const form = el('form', { class: 'auth-form', onsubmit: async (e) => {
+    e.preventDefault();
+    const btn = form.querySelector('button[type=submit]');
+    btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Enviando…';
+    if (mode === 'password') {
+      const { error } = await sb.auth.signInWithPassword({ email, password });
+      if (error) { toast(error.message, 'err'); btn.disabled = false; btn.textContent = 'Entrar'; return; }
+    } else {
+      const { error } = await sb.auth.signInWithOtp({ email, options: { emailRedirectTo: window.location.origin } });
+      if (error) { toast(error.message, 'err'); btn.disabled = false; btn.textContent = 'Enviar magic link'; return; }
+      toast('Revisa tu email', 'ok'); btn.disabled = false; btn.textContent = 'Enviar magic link';
+    }
+  }});
+  form.appendChild(el('input', { type: 'email', placeholder: 'Email', required: 'true', oninput: e => email = e.target.value }));
+  if (mode === 'password') form.appendChild(el('input', { type: 'password', placeholder: 'Contraseña', required: 'true', oninput: e => password = e.target.value }));
+  form.appendChild(el('button', { type: 'submit', class: 'btn btn-primary' }, mode === 'password' ? 'Entrar' : 'Enviar magic link'));
+  card.appendChild(form);
+  card.appendChild(el('div', { class: 'auth-alt' },
+    el('button', { onclick: () => { mode = mode === 'password' ? 'magic' : 'password'; render(); } },
+      mode === 'password' ? 'Usar magic link' : 'Usar contraseña'
+    )
+  ));
+  wrap.appendChild(card);
+  return wrap;
+}
 
-      <!-- CONEXIONES -->
-      <section id="view-connections" class="hidden">
-        <header class="topbar">
-          <div>
-            <h1>Conexiones de Instagram</h1>
-            <p>Gestiona las cuentas IG que tienes conectadas.</p>
-          </div>
-          <button class="btn btn-primary" id="connectIgBtn2">＋ Conectar nueva cuenta</button>
-        </header>
-        <div id="connList" class="conn-list"></div>
-        <div class="info-block">
-          <h3>📌 Importante</h3>
-          <ul>
-            <li>Tu cuenta de Instagram debe ser <strong>Business o Creator</strong> (no Personal)</li>
-            <li>Debe estar vinculada a una <strong>página de Facebook</strong> que administres</li>
-            <li>Sincronizamos automáticamente cada noche. Las stories caducan en 24h y guardamos sus métricas para siempre</li>
-          </ul>
-        </div>
-      </section>
+function viewSidebar() {
+  const items = [
+    { id: 'dashboard', label: 'Dashboard', icon: 'home' },
+    { id: 'calendar', label: 'Calendario', icon: 'cal' },
+    { id: 'connections', label: 'Conexiones', icon: 'ig' },
+  ];
+  if (state.isAdmin) items.push({ id: 'admin', label: 'Admin', icon: 'shield' });
+  return el('aside', { class: 'sidebar' },
+    el('div', { class: 'brand' },
+      el('div', { class: 'brand-logo' }, 'S'),
+      el('div', {},
+        el('div', { class: 'brand-name' }, 'Sequence Insights'),
+        el('div', { class: 'brand-sub' }, 'ABMedia')
+      )
+    ),
+    el('nav', { class: 'nav' },
+      ...items.map(it => {
+        const node = el('div', {
+          class: 'nav-item' + (state.view === it.id ? ' active' : ''),
+          onclick: () => { state.view = it.id; state.detail = null; render(); }
+        });
+        node.innerHTML = `${ICONS[it.icon]}<span>${it.label}</span>`;
+        return node;
+      })
+    ),
+    el('div', { class: 'user-box' },
+      el('div', { class: 'user-email' }, state.user?.email || ''),
+      el('button', { class: 'logout', onclick: async () => { await sb.auth.signOut(); location.reload(); } }, 'Cerrar sesión')
+    )
+  );
+}
 
-      <!-- ADMIN -->
-      <section id="view-admin" class="hidden">
-        <header class="topbar">
-          <div>
-            <h1>Admin · todos los clientes</h1>
-            <p>Visión global de las conexiones IG y métricas de todos los clientes.</p>
-          </div>
-        </header>
-        <div id="adminGrid" class="grid"></div>
-      </section>
-    </main>
-  </div>
+function viewFilterBar() {
+  const bar = el('div', { class: 'filter-bar' });
+  const chips = [
+    { id: 'hoy', label: 'Hoy' },
+    { id: '7d', label: 'Últimos 7 días' },
+    { id: '30d', label: 'Últimos 30 días' },
+    { id: '90d', label: 'Últimos 90 días' },
+    { id: 'custom', label: 'Rango custom' },
+  ];
+  chips.forEach(c => {
+    bar.appendChild(el('button', {
+      class: 'chip' + (state.filter === c.id ? ' active' : ''),
+      onclick: () => { state.filter = c.id; render(); }
+    }, c.label));
+  });
+  const rangeInputs = el('div', { class: 'range-inputs' + (state.filter === 'custom' ? ' show' : '') });
+  rangeInputs.appendChild(el('input', { type: 'date', value: state.customFrom || '', onchange: e => state.customFrom = e.target.value }));
+  rangeInputs.appendChild(el('span', { style: 'color:var(--muted);font-size:12px' }, '→'));
+  rangeInputs.appendChild(el('input', { type: 'date', value: state.customTo || '', onchange: e => state.customTo = e.target.value }));
+  rangeInputs.appendChild(el('button', { class: 'chip active', onclick: () => render() }, 'Aplicar'));
+  bar.appendChild(rangeInputs);
+  return bar;
+}
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="supabase.js?v=1"></script>
-  <script src="app.js?v=1"></script>
+async function viewDashboard() {
+  const container = el('div', {});
+  const syncBtns = state.connections.map(c => {
+    const busy = state.syncing[c.id];
+    const btn = el('button', {
+      class: 'btn btn-primary',
+      onclick: () => syncConnection(c.id),
+      disabled: busy ? 'true' : null,
+    });
+    btn.innerHTML = busy ? `<span class="spinner"></span> Sincronizando…` : `${ICONS.sync} Sincronizar ${c.ig_username || 'IG'}`;
+    return btn;
+  });
+  container.appendChild(el('div', { class: 'page-header' },
+    el('div', {},
+      el('h1', { class: 'page-title' }, 'Dashboard'),
+      el('div', { class: 'page-sub' }, 'Todas tus métricas de secuencias de stories.')
+    ),
+    el('div', { style: 'display:flex;gap:8px' }, ...syncBtns)
+  ));
+  container.appendChild(viewFilterBar());
+
+  const kpiWrap = el('div', { class: 'kpi-grid' });
+  kpiWrap.innerHTML = '<div class="kpi pulse"><div class="kpi-label">Cargando…</div><div class="kpi-value text">—</div></div>'.repeat(6);
+  container.appendChild(kpiWrap);
+
+  const seqList = el('div', {}, el('div', { class: 'empty pulse' }, 'Cargando secuencias…'));
+  container.appendChild(el('div', { class: 'section' },
+    el('div', { class: 'section-title' }, 'Últimas secuencias'),
+    seqList
+  ));
+
+  (async () => {
+    const [kpis, seqs] = await Promise.all([loadKPIs(), loadSequences()]);
+    kpiWrap.innerHTML = '';
+    if (kpis) {
+      const cards = [
+        { l: 'Stories', v: fmt(kpis.total_stories), accent: false },
+        { l: 'Secuencias', v: fmt(kpis.total_sequences), accent: false },
+        { l: 'Views totales', v: fmt(kpis.total_views), accent: true },
+        { l: 'Reach total', v: fmt(kpis.total_reach), accent: true },
+        { l: 'Replies', v: fmt(kpis.total_replies), accent: false },
+        { l: 'Follows', v: fmt(kpis.total_follows), accent: false },
+        { l: 'Profile visits', v: fmt(kpis.total_profile_visits), accent: false },
+        { l: 'Avg drop-off', v: fmtPct(kpis.avg_drop_off), accent: true, hint: 'Entre stories de misma secuencia' },
+        { l: 'Avg completion', v: fmtPct(kpis.avg_completion_rate), accent: true, hint: 'Reach final / reach inicial' },
+      ];
+      cards.forEach(c => kpiWrap.appendChild(el('div', { class: 'kpi' },
+        el('div', { class: 'kpi-label' }, c.l),
+        el('div', { class: 'kpi-value' + (c.accent ? '' : ' text') }, c.v),
+        c.hint ? el('div', { class: 'kpi-hint' }, c.hint) : null
+      )));
+    }
+    seqList.innerHTML = '';
+    if (!seqs.length) { seqList.appendChild(el('div', { class: 'empty' }, 'No hay secuencias en este rango.')); return; }
+    seqs.slice(0, 20).forEach(s => {
+      const row = el('div', { class: 'seq-row', onclick: () => { state.view = 'detail'; state.detail = { cid: s.connection_id, sn: s.seq_num }; render(); } },
+        el('div', { class: 'seq-thumb', style: `background:linear-gradient(135deg,#ff6b35,#ff4d1f)` }),
+        el('div', { class: 'seq-meta' },
+          el('div', { class: 'seq-date' }, fmtDate(s.seq_start)),
+          el('div', { class: 'seq-time' }, `${fmtTime(s.seq_start)} – ${fmtTime(s.seq_end)}`)
+        ),
+        el('div', { class: 'seq-stat' }, el('div', { class: 'seq-stat-v' }, fmt(s.story_count)), el('div', { class: 'seq-stat-l' }, 'stories')),
+        el('div', { class: 'seq-stat' }, el('div', { class: 'seq-stat-v' }, fmt(s.total_views)), el('div', { class: 'seq-stat-l' }, 'views')),
+        el('div', { class: 'seq-stat' }, el('div', { class: 'seq-stat-v' }, fmt(s.total_reach)), el('div', { class: 'seq-stat-l' }, 'reach')),
+        el('div', { class: 'seq-stat' }, el('div', { class: 'seq-stat-v', style: 'color:var(--text)' }, '→'), el('div', { class: 'seq-stat-l' }, 'ver'))
+      );
+      seqList.appendChild(row);
+    });
+  })();
+
+  return container;
+}
+
+async function viewCalendar() {
+  const now = new Date();
+  if (state.calYear == null) state.calYear = now.getFullYear();
+  if (state.calMonth == null) state.calMonth = now.getMonth();
+
+  const container = el('div', {});
+  container.appendChild(el('div', { class: 'page-header' },
+    el('div', {},
+      el('h1', { class: 'page-title' }, 'Calendario'),
+      el('div', { class: 'page-sub' }, 'Cada día con secuencia. Haz clic para el detalle.')
+    )
+  ));
+
+  const calSection = el('div', { class: 'section' });
+  const prevBtn = el('button', { onclick: () => { state.calMonth--; if (state.calMonth < 0) { state.calMonth = 11; state.calYear--; } render(); } });
+  prevBtn.innerHTML = ICONS.back;
+  const nextBtn = el('button', { onclick: () => { state.calMonth++; if (state.calMonth > 11) { state.calMonth = 0; state.calYear++; } render(); }, style: 'transform:rotate(180deg)' });
+  nextBtn.innerHTML = ICONS.back;
+  const header = el('div', { class: 'cal-header' },
+    el('div', { class: 'cal-month' }, monthName(state.calYear, state.calMonth)),
+    el('div', { class: 'cal-nav' }, prevBtn,
+      el('button', { onclick: () => { state.calYear = now.getFullYear(); state.calMonth = now.getMonth(); render(); }, style: 'width:auto;padding:0 12px;font-size:12px' }, 'Hoy'),
+      nextBtn
+    )
+  );
+  calSection.appendChild(header);
+
+  const grid = el('div', { class: 'cal-grid' });
+  const dow = ['L','M','X','J','V','S','D'];
+  dow.forEach(d => grid.appendChild(el('div', { class: 'cal-dow' }, d)));
+
+  const firstOfMonth = new Date(state.calYear, state.calMonth, 1);
+  const startWeekday = (firstOfMonth.getDay() + 6) % 7;
+  const startCal = new Date(state.calYear, state.calMonth, 1 - startWeekday);
+  const cells = [];
+  for (let i = 0; i < 42; i++) {
+    const d = new Date(startCal); d.setDate(startCal.getDate() + i);
+    cells.push(d);
+  }
+  const monthFrom = cells[0].toISOString();
+  const monthTo = new Date(cells[41].getFullYear(), cells[41].getMonth(), cells[41].getDate(), 23, 59, 59).toISOString();
+
+  const cellRefs = cells.map(d => {
+    const isOther = d.getMonth() !== state.calMonth;
+    const isToday = d.toDateString() === now.toDateString();
+    const c = el('div', { class: 'cal-cell' + (isOther ? ' other-month' : '') + (isToday ? ' today' : '') },
+      el('div', { class: 'cal-date' }, String(d.getDate()))
+    );
+    grid.appendChild(c);
+    return { d, c };
+  });
+  calSection.appendChild(grid);
+  container.appendChild(calSection);
+
+  (async () => {
+    const seqs = await loadSequences(monthFrom, monthTo);
+    const byDate = {};
+    seqs.forEach(s => {
+      const key = new Date(s.seq_start).toISOString().slice(0, 10);
+      if (!byDate[key]) byDate[key] = [];
+      byDate[key].push(s);
+    });
+    cellRefs.forEach(({ d, c }) => {
+      const key = d.toISOString().slice(0, 10);
+      const daySeqs = byDate[key];
+      if (!daySeqs) return;
+      c.classList.add('has-seq');
+      const first = daySeqs[0];
+      const totalViews = daySeqs.reduce((a,s) => a + Number(s.total_views || 0), 0);
+      const totalStories = daySeqs.reduce((a,s) => a + Number(s.story_count || 0), 0);
+      c.appendChild(el('div', { class: 'cal-badges' },
+        el('div', { class: 'cal-badge' }, `${totalStories} stories`),
+        el('div', { class: 'cal-badge' }, `${fmt(totalViews)} views`),
+        daySeqs.length > 1 ? el('div', { class: 'cal-badge' }, `${daySeqs.length} seqs`) : null
+      ));
+      c.onclick = () => {
+        state.view = 'detail'; state.detail = { cid: first.connection_id, sn: first.seq_num };
+        render();
+      };
+    });
+  })();
+
+  return container;
+}
+
+async function viewDetail() {
+  const container = el('div', {});
+  const backBtn = el('button', { class: 'btn btn-ghost', onclick: () => { state.view = 'dashboard'; state.detail = null; render(); }, style: 'margin-bottom:16px' });
+  backBtn.innerHTML = `${ICONS.back} Volver`;
+  container.appendChild(backBtn);
+  container.appendChild(el('div', { class: 'page-header' },
+    el('div', {},
+      el('h1', { class: 'page-title' }, 'Detalle de secuencia'),
+      el('div', { class: 'page-sub' }, 'Drop-off entre stories · Edita labels para clasificar cada slot.')
+    )
+  ));
+  const skel = el('div', { class: 'seq-strip pulse' });
+  container.appendChild(skel);
+
+  (async () => {
+    const stories = await loadDetail(state.detail.cid, state.detail.sn);
+    skel.innerHTML = '';
+    if (!stories.length) { skel.appendChild(el('div', { class: 'empty' }, 'Sin datos para esta secuencia.')); return; }
+
+    const strip = el('div', { class: 'seq-strip' });
+    stories.forEach((s, i) => {
+      const card = el('div', { class: 'story-card' });
+      card.appendChild(el('div', { class: 'story-pos' }, `#${s.position_in_seq} · ${fmtTime(s.story_ts)}`));
+      card.appendChild(el('div', { class: 'story-media', style: `background:linear-gradient(135deg,#ff6b35 0%,#ff4d1f 100%);` }));
+      const body = el('div', { class: 'story-body' });
+      body.appendChild(el('input', {
+        class: 'story-label-input',
+        placeholder: 'Label (Hook, Contexto, CTA…)',
+        value: s.label || '',
+        onblur: async (e) => {
+          const v = e.target.value.trim();
+          if (v !== (s.label || '')) {
+            const ok = await updateLabel(s.story_media_id, v || null);
+            if (ok) { s.label = v; toast('Label guardado', 'ok'); }
+          }
+        }
+      }));
+      body.appendChild(el('div', { class: 'story-stats' },
+        el('div', { class: 'story-stat' }, el('div', { class: 'story-stat-l' }, 'Views'), el('div', { class: 'story-stat-v' }, fmt(s.impressions))),
+        el('div', { class: 'story-stat' }, el('div', { class: 'story-stat-l' }, 'Reach'), el('div', { class: 'story-stat-v' }, fmt(s.reach))),
+        el('div', { class: 'story-stat' }, el('div', { class: 'story-stat-l' }, 'Replies'), el('div', { class: 'story-stat-v' }, fmt(s.replies))),
+        el('div', { class: 'story-stat' }, el('div', { class: 'story-stat-l' }, 'Follows'), el('div', { class: 'story-stat-v' }, fmt(s.follows))),
+      ));
+      card.appendChild(body);
+      strip.appendChild(card);
+      if (i < stories.length - 1) {
+        const next = stories[i + 1];
+        const pct = s.reach > 0 ? ((s.reach - next.reach) / s.reach * 100) : null;
+        const cls = pct == null ? 'neutral' : (pct > 0 ? 'drop' : 'gain');
+        const arrow = el('div', { class: 'arrow' });
+        arrow.innerHTML = `${ICONS.arrow}<div class="arrow-pct ${cls}">${pct == null ? '—' : (pct > 0 ? '−' : '+') + Math.abs(pct).toFixed(1) + '%'}</div>`;
+        strip.appendChild(arrow);
+      }
+    });
+
+    const totalReach = stories.reduce((a,s) => a + Number(s.reach || 0), 0);
+    const totalViews = stories.reduce((a,s) => a + Number(s.impressions || 0), 0);
+    const totalReplies = stories.reduce((a,s) => a + Number(s.replies || 0), 0);
+    const totalFollows = stories.reduce((a,s) => a + Number(s.follows || 0), 0);
+    const totalProfile = stories.reduce((a,s) => a + Number(s.profile_visits || 0), 0);
+    const first = stories[0], last = stories[stories.length - 1];
+    const completion = first.reach > 0 ? (last.reach / first.reach * 100) : null;
+    const drops = stories.filter(s => s.drop_off_pct != null).map(s => Number(s.drop_off_pct));
+    const avgDrop = drops.length ? drops.reduce((a,b) => a + b, 0) / drops.length : null;
+
+    const kpis = el('div', { class: 'kpi-grid', style: 'margin-top:8px' },
+      el('div', { class: 'kpi' }, el('div', { class: 'kpi-label' }, 'Stories'), el('div', { class: 'kpi-value text' }, fmt(stories.length))),
+      el('div', { class: 'kpi' }, el('div', { class: 'kpi-label' }, 'Views totales'), el('div', { class: 'kpi-value' }, fmt(totalViews))),
+      el('div', { class: 'kpi' }, el('div', { class: 'kpi-label' }, 'Reach total'), el('div', { class: 'kpi-value' }, fmt(totalReach))),
+      el('div', { class: 'kpi' }, el('div', { class: 'kpi-label' }, 'Replies'), el('div', { class: 'kpi-value text' }, fmt(totalReplies))),
+      el('div', { class: 'kpi' }, el('div', { class: 'kpi-label' }, 'Follows'), el('div', { class: 'kpi-value text' }, fmt(totalFollows))),
+      el('div', { class: 'kpi' }, el('div', { class: 'kpi-label' }, 'Profile visits'), el('div', { class: 'kpi-value text' }, fmt(totalProfile))),
+      el('div', { class: 'kpi' }, el('div', { class: 'kpi-label' }, 'Completion rate'), el('div', { class: 'kpi-value' }, fmtPct(completion))),
+      el('div', { class: 'kpi' }, el('div', { class: 'kpi-label' }, 'Avg drop-off'), el('div', { class: 'kpi-value' }, fmtPct(avgDrop))),
+    );
+    skel.replaceWith(strip);
+    strip.after(kpis);
+  })();
+
+  return container;
+}
+
+async function viewConnections() {
+  const container = el('div', {});
+  container.appendChild(el('div', { class: 'page-header' },
+    el('div', {},
+      el('h1', { class: 'page-title' }, 'Conexiones de Instagram'),
+      el('div', { class: 'page-sub' }, 'Cuentas conectadas para sincronizar métricas de stories.')
+    )
+  ));
+  const list = el('div', {});
+  container.appendChild(list);
+  if (!state.connections.length) { list.appendChild(el('div', { class: 'empty' }, 'No hay conexiones configuradas.')); return container; }
+  state.connections.forEach(c => {
+    const expiresAt = c.expires_at ? new Date(c.expires_at) : null;
+    const daysLeft = expiresAt ? Math.round((expiresAt - new Date()) / (1000*60*60*24)) : null;
+    const tokenBadge = daysLeft == null ? el('span', { class: 'badge-token' }, 'Sin fecha')
+      : daysLeft < 7 ? el('span', { class: 'badge-token err' }, `Expira en ${daysLeft}d`)
+      : daysLeft < 30 ? el('span', { class: 'badge-token warn' }, `Expira en ${daysLeft}d`)
+      : el('span', { class: 'badge-token ok' }, `Válido ${daysLeft}d`);
+    const busy = state.syncing[c.id];
+    const syncBtn = el('button', { class: 'btn btn-primary', onclick: () => syncConnection(c.id), disabled: busy ? 'true' : null });
+    syncBtn.innerHTML = busy ? `<span class="spinner"></span> Sincronizando…` : `${ICONS.sync} Sincronizar`;
+    const metaText = el('div', { class: 'conn-meta' });
+    metaText.appendChild(document.createTextNode(`${c.page_name || '—'} · `));
+    metaText.appendChild(tokenBadge);
+    list.appendChild(el('div', { class: 'conn-card' },
+      el('div', { class: 'conn-info' },
+        el('div', { class: 'conn-user' }, c.ig_username || c.page_name || c.id.slice(0,8)),
+        metaText
+      ),
+      el('div', { class: 'conn-actions' }, syncBtn)
+    ));
+  });
+  return container;
+}
+
+async function viewAdmin() {
+  const container = el('div', {});
+  container.appendChild(el('div', { class: 'page-header' },
+    el('div', {},
+      el('h1', { class: 'page-title' }, 'Admin'),
+      el('div', { class: 'page-sub' }, 'Panel de operador. Solo visible para ti.')
+    )
+  ));
+  container.appendChild(el('div', { class: 'section' },
+    el('div', { class: 'section-title' }, 'Estado global'),
+    el('div', { class: 'kpi-grid' },
+      el('div', { class: 'kpi' }, el('div', { class: 'kpi-label' }, 'Conexiones activas'), el('div', { class: 'kpi-value' }, fmt(state.connections.length))),
+      el('div', { class: 'kpi' }, el('div', { class: 'kpi-label' }, 'Usuario'), el('div', { class: 'kpi-value text', style: 'font-size:14px' }, state.user?.email || '—'))
+    )
+  ));
+  return container;
+}
+
+async function render() {
+  const root = document.getElementById('app');
+  root.innerHTML = '';
+  if (!state.session) { root.appendChild(viewAuth()); return; }
+  root.appendChild(viewSidebar());
+  const main = el('main', { class: 'main' });
+  root.appendChild(main);
+  let node;
+  if (state.detail && state.view === 'detail') node = await viewDetail();
+  else if (state.view === 'calendar') node = await viewCalendar();
+  else if (state.view === 'connections') node = await viewConnections();
+  else if (state.view === 'admin') node = await viewAdmin();
+  else node = await viewDashboard();
+  main.appendChild(node);
+}
+
+(async () => {
+  const { data: { session } } = await sb.auth.getSession();
+  state.session = session;
+  if (session) {
+    state.user = session.user;
+    state.isAdmin = ADMIN_EMAILS.includes(session.user.email);
+    state.connections = await loadConnections();
+  }
+  sb.auth.onAuthStateChange(async (_, s) => {
+    state.session = s;
+    state.user = s?.user || null;
+    state.isAdmin = s?.user && ADMIN_EMAILS.includes(s.user.email);
+    if (s) state.connections = await loadConnections();
+    render();
+  });
+  render();
+})();
+</script>
 </body>
 </html>
