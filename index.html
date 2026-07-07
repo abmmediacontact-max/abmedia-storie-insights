@@ -1086,21 +1086,38 @@ async function render() {
 }
 
 (async () => {
-  const { data: { session } } = await sb.auth.getSession();
-  state.session = session;
-  if (session) {
-    state.user = session.user;
-    state.isAdmin = ADMIN_EMAILS.includes(session.user.email);
-    state.connections = await loadConnections();
-  }
-  sb.auth.onAuthStateChange(async (_, s) => {
-    state.session = s;
-    state.user = s?.user || null;
-    state.isAdmin = s?.user && ADMIN_EMAILS.includes(s.user.email);
-    if (s) state.connections = await loadConnections();
+  // Render immediately so #app is never empty, even if auth hangs
+  try { render(); } catch (e) { console.warn('initial render failed', e); }
+  try {
+    const AUTH_TIMEOUT_MS = 4000;
+    const res = await Promise.race([
+      sb.auth.getSession(),
+      new Promise((_, rej) => setTimeout(() => rej(new Error('auth-timeout')), AUTH_TIMEOUT_MS))
+    ]);
+    const session = res?.data?.session || null;
+    state.session = session;
+    if (session) {
+      state.user = session.user;
+      state.isAdmin = ADMIN_EMAILS.includes(session.user.email);
+      try { state.connections = await loadConnections(); } catch (e) { console.warn('loadConnections failed', e); }
+    }
     render();
-  });
-  render();
+  } catch (e) {
+    console.warn('Auth init failed, showing login screen:', e && e.message);
+    state.session = null;
+    render();
+  }
+  try {
+    sb.auth.onAuthStateChange(async (_, s) => {
+      state.session = s;
+      state.user = s?.user || null;
+      state.isAdmin = s?.user && ADMIN_EMAILS.includes(s.user.email);
+      if (s) {
+        try { state.connections = await loadConnections(); } catch (e) { console.warn('loadConnections failed', e); }
+      }
+      render();
+    });
+  } catch (e) { console.warn('onAuthStateChange subscribe failed', e); }
 })();
 </script>
 </body>
