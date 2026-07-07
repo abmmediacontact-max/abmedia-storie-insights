@@ -48,13 +48,22 @@ input:focus,select:focus{border-color:var(--accent)}
 .page-sub{font-size:13px;color:var(--muted);margin-top:4px}
 .page-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 
-.dash-chip{display:inline-flex;align-items:center;gap:8px;padding:7px 12px;background:var(--bg-3);border:1px solid var(--border);border-radius:20px;font-size:12px;font-weight:600;color:var(--text)}
-.dash-chip .dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 0 3px rgba(34,197,94,.2)}
+.dash-chip{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:36px;padding:0 14px;background:var(--bg-3);border:1px solid var(--border);border-radius:20px;font-size:12px;font-weight:600;color:var(--text);line-height:1;box-sizing:border-box}
+.dash-chip.clickable{cursor:pointer;transition:.12s}
+.dash-chip.clickable:hover{border-color:var(--accent);color:var(--accent)}
+.dash-chip.clickable:hover .u{color:var(--accent)}
+.dash-chip .dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 0 3px rgba(34,197,94,.2);flex-shrink:0}
 .dash-chip .dot.warn{background:var(--yellow);box-shadow:0 0 0 3px rgba(234,179,8,.2)}
 .dash-chip .dot.err{background:var(--red);box-shadow:0 0 0 3px rgba(239,68,68,.2)}
 .dash-chip .u{color:var(--muted)}
+.chip-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:36px;padding:0 14px;background:var(--bg-3);border:1px solid var(--border);border-radius:20px;font-size:12px;font-weight:600;color:var(--text);line-height:1;cursor:pointer;transition:.12s;box-sizing:border-box;white-space:nowrap}
+.chip-btn:hover{border-color:var(--accent);color:var(--accent)}
+.chip-btn:disabled{cursor:not-allowed;opacity:.55}
+.chip-btn:disabled:hover{border-color:var(--border);color:var(--text)}
+.chip-btn svg{width:14px;height:14px;flex-shrink:0}
 
-.btn{display:inline-flex;align-items:center;gap:8px;padding:9px 14px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;transition:.12s;border:1px solid transparent;white-space:nowrap}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:9px 14px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;transition:.12s;border:1px solid transparent;white-space:nowrap;line-height:1;box-sizing:border-box}
+.btn svg{width:14px;height:14px;flex-shrink:0}
 .btn-primary{background:var(--accent);color:#0a0a0a}
 .btn-primary:hover{background:var(--accent-2)}
 .btn-primary:disabled{background:var(--bg-3);color:var(--muted);cursor:not-allowed}
@@ -129,6 +138,9 @@ input:focus,select:focus{border-color:var(--accent)}
 .seq-stat{text-align:right;min-width:60px}
 .seq-stat-v{font-weight:700;color:var(--accent);font-size:15px}
 .seq-stat-l{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.seq-go{width:32px;height:32px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:var(--bg);color:var(--muted);transition:.12s;flex-shrink:0}
+.seq-go svg{width:16px;height:16px;stroke-width:2.2}
+.seq-row:hover .seq-go{background:var(--accent-dim);color:var(--accent)}
 
 .seq-strip-wrap{overflow-x:auto;padding:8px 0 16px 0}
 .seq-strip{display:flex;gap:0;align-items:stretch;justify-content:center;min-width:min-content;padding:0 20px}
@@ -293,12 +305,56 @@ async function loadSequences(fromISO, toISO) {
   const { from, to } = fromISO && toISO ? { from: fromISO, to: toISO } : getRange();
   const { data, error } = await sb.rpc('get_sequence_calendar', { from_date: from, to_date: to });
   if (error) { console.error(error); return []; }
-  return data || [];
+  const seqs = data || [];
+  // Enrich each sequence with first-story media URL from ig_story_insights
+  const needsEnrich = seqs.some(s => !(s.first_media_storage_url || s.first_media_url || s.first_thumbnail_url));
+  if (seqs.length && needsEnrich) {
+    try {
+      const { data: firstStories } = await sb.from('ig_story_insights')
+        .select('connection_id, seq_num, media_url, thumbnail_url, storage_url, story_ts, position_in_seq')
+        .gte('story_ts', from).lte('story_ts', to)
+        .eq('position_in_seq', 1);
+      const byKey = {};
+      (firstStories || []).forEach(fs => {
+        byKey[`${fs.connection_id}::${fs.seq_num}`] = fs.storage_url || fs.media_url || fs.thumbnail_url || null;
+      });
+      seqs.forEach(s => {
+        const k = `${s.connection_id}::${s.seq_num}`;
+        if (byKey[k] && !(s.first_media_storage_url || s.first_media_url || s.first_thumbnail_url)) {
+          s.first_media_url = byKey[k];
+        }
+      });
+    } catch (e) { console.warn('first-story enrich failed', e); }
+  }
+  return seqs;
 }
 async function loadDetail(connectionId, seqNum) {
   const { data, error } = await sb.rpc('get_sequence_detail', { p_connection_id: connectionId, p_seq_num: seqNum });
   if (error) { console.error(error); return []; }
-  return data || [];
+  const stories = data || [];
+  // Enrich each story with media URL from ig_story_insights
+  const needsEnrich = stories.some(s => !(s.storage_url || s.media_url || s.thumbnail_url));
+  if (stories.length && needsEnrich) {
+    try {
+      const ids = stories.map(x => x.story_media_id).filter(Boolean);
+      if (ids.length) {
+        const { data: media } = await sb.from('ig_story_insights')
+          .select('story_media_id, media_url, thumbnail_url, storage_url')
+          .in('story_media_id', ids);
+        const byId = {};
+        (media || []).forEach(m => { byId[m.story_media_id] = m; });
+        stories.forEach(s => {
+          const m = byId[s.story_media_id];
+          if (m) {
+            s.storage_url   = s.storage_url   || m.storage_url;
+            s.media_url     = s.media_url     || m.media_url;
+            s.thumbnail_url = s.thumbnail_url || m.thumbnail_url;
+          }
+        });
+      }
+    } catch (e) { console.warn('detail media enrich failed', e); }
+  }
+  return stories;
 }
 async function loadConnections() {
   const { data, error } = await sb.from('ig_connections').select('*').order('created_at', { ascending: false });
@@ -621,17 +677,31 @@ function viewFilterBar() {
   return bar;
 }
 
+function startIgConnect() {
+  const url = `${SUPABASE_URL}/functions/v1/ig-oauth-start?redirect=${encodeURIComponent(window.location.origin)}`;
+  window.open(url, '_blank', 'noopener');
+  toast('Abriendo flujo de conexión de Instagram', 'ok');
+}
+
 function connChip() {
   const conn = state.connections[0];
-  if (!conn) return el('div', { class: 'dash-chip' },
+  if (!conn) return el('div', {
+    class: 'dash-chip clickable',
+    title: 'Conectar cuenta de Instagram',
+    onclick: startIgConnect
+  },
     el('span', { class: 'dot err' }),
-    el('span', { class: 'u' }, 'Sin cuenta conectada')
+    el('span', { class: 'u' }, 'Conectar cuenta')
   );
   const expiresAt = conn.expires_at ? new Date(conn.expires_at) : null;
   const daysLeft = expiresAt ? Math.round((expiresAt - new Date()) / (1000*60*60*24)) : null;
   const dotCls = daysLeft == null ? '' : (daysLeft < 7 ? 'err' : daysLeft < 30 ? 'warn' : '');
   const uname = conn.ig_username || conn.page_name || 'IG';
-  return el('div', { class: 'dash-chip', title: expiresAt ? `Token expira ${expiresAt.toLocaleDateString('es-ES')}` : '' },
+  return el('div', {
+    class: 'dash-chip clickable',
+    title: expiresAt ? `Token expira ${expiresAt.toLocaleDateString('es-ES')} · Clic para reconectar` : 'Clic para reconectar',
+    onclick: startIgConnect
+  },
     el('span', { class: 'dot ' + dotCls }),
     el('span', {}, '@' + uname)
   );
@@ -643,12 +713,15 @@ async function viewDashboard() {
   const conn = state.connections[0];
   const busy = conn && state.syncing[conn.id];
   const refreshBtn = el('button', {
-    class: 'btn btn-ghost',
-    onclick: () => conn && !busy && syncConnection(conn.id),
-    disabled: (!conn || busy) ? 'true' : null,
-    title: 'Sincronizar métricas'
+    class: 'chip-btn',
+    onclick: () => {
+      if (!conn) { startIgConnect(); return; }
+      if (!busy) syncConnection(conn.id);
+    },
+    disabled: busy ? 'true' : null,
+    title: conn ? 'Sincronizar métricas' : 'Conecta primero una cuenta'
   });
-  refreshBtn.innerHTML = busy ? '<span class="spinner"></span> Sincronizando' : `${ICONS.sync} Refrescar`;
+  refreshBtn.innerHTML = busy ? '<span class="spinner"></span><span>Sincronizando</span>' : `${ICONS.sync}<span>Refrescar</span>`;
 
   container.appendChild(el('div', { class: 'page-header' },
     el('div', {},
@@ -776,7 +849,7 @@ async function viewDashboard() {
         el('div', { class: 'seq-stat' }, el('div', { class: 'seq-stat-v' }, fmt(s.total_views)), el('div', { class: 'seq-stat-l' }, 'views')),
         el('div', { class: 'seq-stat' }, el('div', { class: 'seq-stat-v' }, fmt(s.total_reach)), el('div', { class: 'seq-stat-l' }, 'reach')),
         el('div', { class: 'seq-stat' }, el('div', { class: 'seq-stat-v' }, fmt(s.total_replies)), el('div', { class: 'seq-stat-l' }, 'replies')),
-        el('div', { class: 'seq-stat' }, el('div', { class: 'seq-stat-v', style: 'color:var(--text)' }, '→'), el('div', { class: 'seq-stat-l' }, 'ver'))
+        (() => { const g = el('div', { class: 'seq-go', title: 'Ver detalle' }); g.innerHTML = ICONS.arrow; return g; })()
       );
       seqList.appendChild(row);
     });
