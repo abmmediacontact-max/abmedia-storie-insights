@@ -58,6 +58,8 @@ input:focus,select:focus{border-color:var(--accent)}
 .side-connect-btn{display:flex;align-items:center;justify-content:center;gap:8px;height:36px;background:var(--accent-dim);border:1px solid var(--accent);border-radius:8px;color:var(--accent);font-size:12px;font-weight:600;cursor:pointer;transition:.12s}
 .side-connect-btn svg{width:14px;height:14px}
 .side-connect-btn:hover{background:var(--accent);color:#0a0a0a}
+  .side-connect-btn:disabled{cursor:not-allowed;opacity:.65}
+  .side-connect-btn:disabled:hover{background:var(--accent-dim);color:var(--accent)}
 
 .main{margin-left:240px;flex:1;padding:32px 40px;min-width:0}
 .page-header{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:24px;flex-wrap:wrap}
@@ -249,6 +251,7 @@ const state = {
   calYear: null, calMonth: null,
   detail: null, connections: [],
   syncing: {}, lastSyncAt: {},
+    connecting: false,
 };
 
 const el = (tag, attrs = {}, ...children) => {
@@ -375,7 +378,7 @@ async function loadDetail(connectionId, seqNum) {
   return stories;
 }
 async function loadConnections() {
-  const { data, error } = await sb.from('ig_connections').select('*').order('created_at', { ascending: false });
+  const { data, error } = await sb.from('ig_connections').select('*').order('connected_at', { ascending: false });
   if (error) { console.error('loadConnections error:', error); return []; }
   return data || [];
 }
@@ -681,14 +684,17 @@ function sideAccountPanel() {
     const btn = el('button', {
       class: 'side-connect-btn',
       onclick: startIgConnect,
+            disabled: state.connecting ? 'true' : null,
       title: 'Conectar cuenta de Instagram'
     });
-    btn.innerHTML = `${ICONS.plus}<span>Conectar cuenta</span>`;
+    btn.innerHTML = state.connecting
+          ? '<span class="spinner"></span><span>Conectando…</span>'
+            : `${ICONS.plus}<span>Conectar cuenta</span>`;
     wrap.appendChild(btn);
     return wrap;
   }
   const busy = !!state.syncing[conn.id];
-  const uname = conn.ig_username || conn.page_name || 'IG';
+  const uname = conn.ig_username || 'IG';
   const expiresAt = conn.expires_at ? new Date(conn.expires_at) : null;
   const daysLeft = expiresAt ? Math.round((expiresAt - new Date()) / (1000*60*60*24)) : null;
   const dotCls = daysLeft == null ? '' : (daysLeft < 7 ? 'err' : daysLeft < 30 ? 'warn' : '');
@@ -739,10 +745,11 @@ function viewFilterBar() {
 }
 
 async function startIgConnect() {
+    if (state.connecting) return;
+    state.connecting = true; render();
   const base = `${SUPABASE_URL}/functions/v1/ig-oauth-start?redirect=${encodeURIComponent(window.location.origin)}`;
-  toast('Abriendo flujo de conexión de Instagram', 'ok');
-  const token = state.session?.access_token;
-  if (!token) { toast('Sesión no disponible, recarga la página', 'err'); return; }
+    const token = state.session?.access_token;
+  if (!token) { state.connecting = false; toast('Sesión no disponible, recarga la página', 'err'); render(); return; }
   // La función ig-oauth-start requiere la cabecera Authorization (por eso devolvía
   // UNAUTHORIZED_NO_AUTH_HEADER al navegar directo con window.location/window.open,
   // que no pueden enviar cabeceras). Se intenta primero vía fetch autenticado
@@ -761,6 +768,7 @@ async function startIgConnect() {
       target = data?.url || data?.redirect_url || data?.authorize_url || null;
       if (!target && data && data.code) {
         console.error('ig-oauth-start error', data);
+                state.connecting = false; render();
         toast('Error al conectar: ' + (data.message || data.code), 'err');
         return;
       }
@@ -770,6 +778,7 @@ async function startIgConnect() {
     if (target) { window.location.href = target; return; }
     const txt = await res.text().catch(() => '');
     console.error('ig-oauth-start: respuesta inesperada', res.status, txt);
+        state.connecting = false; render();
     toast('No se pudo iniciar la conexión con Instagram (' + res.status + ')', 'err');
   } catch (e) {
     console.warn('startIgConnect: fetch autenticado falló, probando fallback con token en query', e);
@@ -790,52 +799,14 @@ async function disconnectConnection(connId) {
   }
 }
 
-function connChip() {
-  const conn = state.connections[0];
-  if (!conn) return el('div', {
-    class: 'dash-chip clickable',
-    title: 'Conectar cuenta de Instagram',
-    onclick: startIgConnect
-  },
-    el('span', { class: 'dot err' }),
-    el('span', { class: 'u' }, 'Conectar cuenta')
-  );
-  const expiresAt = conn.expires_at ? new Date(conn.expires_at) : null;
-  const daysLeft = expiresAt ? Math.round((expiresAt - new Date()) / (1000*60*60*24)) : null;
-  const dotCls = daysLeft == null ? '' : (daysLeft < 7 ? 'err' : daysLeft < 30 ? 'warn' : '');
-  const uname = conn.ig_username || conn.page_name || 'IG';
-  return el('div', {
-    class: 'dash-chip clickable',
-    title: expiresAt ? `Token expira ${expiresAt.toLocaleDateString('es-ES')} · Clic para reconectar` : 'Clic para reconectar',
-    onclick: startIgConnect
-  },
-    el('span', { class: 'dot ' + dotCls }),
-    el('span', {}, '@' + uname)
-  );
-}
-
 async function viewDashboard() {
   const container = el('div', {});
 
-  const conn = state.connections[0];
-  const busy = conn && state.syncing[conn.id];
-  const refreshBtn = el('button', {
-    class: 'chip-btn',
-    onclick: () => {
-      if (!conn) { startIgConnect(); return; }
-      if (!busy) syncConnection(conn.id);
-    },
-    disabled: busy ? 'true' : null,
-    title: conn ? 'Sincronizar métricas' : 'Conecta primero una cuenta'
-  });
-  refreshBtn.innerHTML = busy ? '<span class="spinner"></span><span>Sincronizando</span>' : `${ICONS.sync}<span>Refrescar</span>`;
-
-  container.appendChild(el('div', { class: 'page-header' },
+    container.appendChild(el('div', { class: 'page-header' },
     el('div', {},
       el('h1', { class: 'page-title' }, 'Dashboard'),
       el('div', { class: 'page-sub' }, 'Métricas de todas tus secuencias de stories.')
-    ),
-    el('div', { class: 'page-actions' }, connChip(), refreshBtn)
+    )
   ));
   container.appendChild(viewFilterBar());
 
@@ -975,8 +946,7 @@ async function viewCalendar() {
     el('div', {},
       el('h1', { class: 'page-title' }, 'Calendario'),
       el('div', { class: 'page-sub' }, 'Cada día con secuencia muestra la primera story. Haz clic para el detalle.')
-    ),
-    el('div', { class: 'page-actions' }, connChip())
+    )
   ));
 
   const calSection = el('div', { class: 'section' });
@@ -1070,8 +1040,7 @@ async function viewDetail() {
     el('div', {},
       el('h1', { class: 'page-title' }, 'Detalle de secuencia'),
       el('div', { class: 'page-sub' }, 'Drop-off entre stories · Edita labels para clasificar cada slot.')
-    ),
-    el('div', { class: 'page-actions' }, connChip())
+    )
   ));
   const skel = el('div', { class: 'pulse empty' }, 'Cargando secuencia…');
   container.appendChild(skel);
@@ -1207,8 +1176,7 @@ async function viewAdmin() {
     el('div', {},
       el('h1', { class: 'page-title' }, 'Admin'),
       el('div', { class: 'page-sub' }, 'Panel de operador. Solo visible para ti.')
-    ),
-    el('div', { class: 'page-actions' }, connChip())
+    )
   ));
   container.appendChild(el('div', { class: 'section' },
     el('div', { class: 'section-title' }, 'Estado global'),
@@ -1234,11 +1202,11 @@ async function viewAdmin() {
       const syncBtn = el('button', { class: 'btn btn-primary', onclick: () => syncConnection(c.id), disabled: busy ? 'true' : null });
       syncBtn.innerHTML = busy ? `<span class="spinner"></span> Sincronizando…` : `${ICONS.sync} Sincronizar`;
       const metaText = el('div', { style: 'font-size:11px;color:var(--muted);margin-top:2px' });
-      metaText.appendChild(document.createTextNode(`${c.page_name || '—'} · `));
+      metaText.appendChild(document.createTextNode(`${c.page_id || '—'} · `));
       metaText.appendChild(tokenBadge);
       section.appendChild(el('div', { style: 'background:var(--bg-3);border:1px solid var(--border);border-radius:10px;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:8px' },
         el('div', { style: 'min-width:0' },
-          el('div', { style: 'font-weight:600;font-size:14px' }, '@' + (c.ig_username || c.page_name || c.id.slice(0,8))),
+          el('div', { style: 'font-weight:600;font-size:14px' }, '@' + (c.ig_username || c.id.slice(0,8))),
           metaText
         ),
         el('div', { style: 'display:flex;gap:8px;flex-shrink:0' }, syncBtn)
