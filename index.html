@@ -60,6 +60,25 @@ input:focus,select:focus{border-color:var(--accent)}
 .side-connect-btn:hover{background:var(--accent);color:#0a0a0a}
   .side-connect-btn:disabled{cursor:not-allowed;opacity:.65}
   .side-connect-btn:disabled:hover{background:var(--accent-dim);color:var(--accent)}
+  .side-search{margin-top:12px;position:relative}
+  .side-search-row{display:flex;align-items:center;gap:8px;background:var(--bg-3);border:1px solid var(--border);border-radius:8px;padding:0 10px;height:34px;transition:.12s}
+  .side-search-row:focus-within{border-color:var(--accent)}
+  .side-search-row svg{width:14px;height:14px;color:var(--muted);flex-shrink:0}
+  .side-search-input{flex:1;background:transparent;border:none;padding:0;height:100%;font-size:12px;color:var(--text)}
+  .side-search-input:focus{outline:none}
+  .side-search-results{display:none;position:absolute;left:0;right:0;top:calc(100% + 6px);background:var(--bg-2);border:1px solid var(--border);border-radius:10px;padding:6px;max-height:260px;overflow-y:auto;z-index:20;box-shadow:0 8px 24px rgba(0,0,0,.4)}
+  .side-search-results.show{display:block}
+  .side-search-item{padding:8px 10px;border-radius:6px;cursor:pointer;transition:.1s}
+  .side-search-item:hover{background:var(--bg-3)}
+  .side-search-item-name{font-size:12px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .side-search-item-date{font-size:10.5px;color:var(--muted);margin-top:1px}
+  .side-search-empty{padding:10px;font-size:12px;color:var(--muted);text-align:center}
+  .seq-name-row{display:flex;align-items:center;gap:6px}
+  .seq-name{font-size:13px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px}
+  .seq-rename-btn{background:transparent;border:none;color:var(--muted-2);cursor:pointer;display:inline-flex;padding:2px;border-radius:4px;flex-shrink:0}
+  .seq-rename-btn:hover{color:var(--accent);background:var(--bg-3)}
+  .seq-rename-btn svg{width:12px;height:12px}
+  .seq-name-input{font-size:12px;padding:4px 8px;height:24px;width:150px}
 
 .main{margin-left:240px;flex:1;padding:32px 40px;min-width:0}
 .page-header{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:24px;flex-wrap:wrap}
@@ -315,6 +334,8 @@ const ICONS = {
   arrow: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M13 6l6 6-6 6"/></svg>',
   power: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v9M5.6 7.6a9 9 0 1012.8 0"/></svg>',
   plus:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 5v14M5 12h14"/></svg>',
+    search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>',
+    pencil: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>',
 };
 
 // --- Data loaders ---
@@ -325,59 +346,80 @@ async function loadKPIs(fromISO, toISO) {
   return (data && data[0]) || null;
 }
 async function loadSequences(fromISO, toISO) {
-  const { from, to } = fromISO && toISO ? { from: fromISO, to: toISO } : getRange();
-  const { data, error } = await sb.rpc('get_sequence_calendar', { from_date: from, to_date: to });
-  if (error) { console.error(error); return []; }
-  const seqs = data || [];
-  // Enrich each sequence with first-story media URL. Los thumbnails viven dentro de raw.story.media_url
-  // porque ig_story_insights no tiene columnas top-level media_url/thumbnail_url/storage_url.
-  if (seqs.length) {
-    try {
-      const startTs = Array.from(new Set(seqs.map(s => s.seq_start).filter(Boolean)));
-      if (startTs.length) {
-        const { data: firstStories } = await sb.from('ig_story_insights')
-          .select('connection_id, story_ts, raw')
-          .in('story_ts', startTs);
-        const byKey = {};
-        (firstStories || []).forEach(fs => {
-          const url = (fs.raw && fs.raw.story && (fs.raw.story.media_url || fs.raw.story.thumbnail_url)) || null;
-          if (url) byKey[`${fs.connection_id}::${fs.story_ts}`] = url;
-        });
-        seqs.forEach(s => {
-          const k = `${s.connection_id}::${s.seq_start}`;
-          if (byKey[k]) s.first_media_url = byKey[k];
-        });
-      }
-    } catch (e) { console.warn('first-story enrich failed', e); }
-  }
-  return seqs;
+    const { from, to } = fromISO && toISO ? { from: fromISO, to: toISO } : getRange();
+    const { data, error } = await sb.rpc('get_sequence_calendar', { from_date: from, to_date: to });
+    if (error) { console.error(error); return []; }
+    const seqs = data || [];
+    // Enrich each sequence with first-story media URL. Prefer the permanently-stored
+    // storage_url; fall back to the (possibly expired) raw.story.media_url/thumbnail_url.
+    if (seqs.length) {
+          try {
+                  const startTs = Array.from(new Set(seqs.map(s => s.seq_start).filter(Boolean)));
+                  if (startTs.length) {
+                            const { data: firstStories } = await sb.from('ig_story_insights')
+                                        .select('connection_id, story_ts, raw, storage_url')
+                                        .in('story_ts', startTs);
+                            const byKey = {};
+                            (firstStories || []).forEach(fs => {
+                                        const rawUrl = (fs.raw && fs.raw.story && (fs.raw.story.media_url || fs.raw.story.thumbnail_url)) || null;
+                                        byKey[`${fs.connection_id}::${fs.story_ts}`] = { storage: fs.storage_url || null, raw: rawUrl };
+                            });
+                            seqs.forEach(s => {
+                                        const k = `${s.connection_id}::${s.seq_start}`;
+                                        const entry = byKey[k];
+                                        if (entry) {
+                                                      if (entry.storage) s.first_media_storage_url = entry.storage;
+                                                      if (entry.raw) s.first_media_url = entry.raw;
+                                        }
+                            });
+                  }
+                  const connIds = Array.from(new Set(seqs.map(s => s.connection_id).filter(Boolean)));
+                  if (connIds.length) {
+                            const { data: names } = await sb.from('sequence_names')
+                                        .select('connection_id, seq_start, name')
+                                        .in('connection_id', connIds);
+                            const byNameKey = {};
+                            (names || []).forEach(n => { byNameKey[`${n.connection_id}::${n.seq_start}`] = n.name; });
+                            seqs.forEach(s => {
+                                        const k = `${s.connection_id}::${s.seq_start}`;
+                                        if (byNameKey[k]) s.custom_name = byNameKey[k];
+                            });
+                  }
+          } catch (e) { console.warn('first-story enrich failed', e); }
+    }
+    return seqs;
 }
-async function loadDetail(connectionId, seqNum) {
-  const { data, error } = await sb.rpc('get_sequence_detail', { p_connection_id: connectionId, p_seq_num: seqNum });
-  if (error) { console.error(error); return []; }
-  const stories = data || [];
-  // Enrich each story with media URL desde raw.story (columnas top-level no existen en la tabla).
-  if (stories.length) {
-    try {
-      const ids = stories.map(x => x.story_media_id).filter(Boolean);
-      if (ids.length) {
-        const { data: media } = await sb.from('ig_story_insights')
-          .select('story_media_id, raw')
-          .in('story_media_id', ids);
-        const byId = {};
-        (media || []).forEach(m => {
-          const url = (m.raw && m.raw.story && (m.raw.story.media_url || m.raw.story.thumbnail_url)) || null;
-          if (url) byId[m.story_media_id] = url;
-        });
-        stories.forEach(s => {
-          if (byId[s.story_media_id] && !s.media_url) s.media_url = byId[s.story_media_id];
-        });
+  async function loadDetail(connectionId, seqNum) {
+      const { data, error } = await sb.rpc('get_sequence_detail', { p_connection_id: connectionId, p_seq_num: seqNum });
+      if (error) { console.error(error); return []; }
+      const stories = data || [];
+      // Enrich each story with media URL. Prefer the permanently-stored storage_url;
+      // fall back to raw.story media_url/thumbnail_url (columnas top-level no existen en la tabla).
+      if (stories.length) {
+            try {
+                    const ids = stories.map(x => x.story_media_id).filter(Boolean);
+                    if (ids.length) {
+                              const { data: media } = await sb.from('ig_story_insights')
+                                          .select('story_media_id, raw, storage_url')
+                                          .in('story_media_id', ids);
+                              const byId = {};
+                              (media || []).forEach(m => {
+                                          const url = (m.raw && m.raw.story && (m.raw.story.media_url || m.raw.story.thumbnail_url)) || null;
+                                          byId[m.story_media_id] = { storage: m.storage_url || null, raw: url };
+                              });
+                              stories.forEach(s => {
+                                          const entry = byId[s.story_media_id];
+                                          if (entry) {
+                                                        if (entry.storage && !s.storage_url) s.storage_url = entry.storage;
+                                                        if (entry.raw && !s.media_url) s.media_url = entry.raw;
+                                          }
+                              });
+                    }
+            } catch (e) { console.warn('detail media enrich failed', e); }
       }
-    } catch (e) { console.warn('detail media enrich failed', e); }
+      return stories;
   }
-  return stories;
-}
-async function loadConnections() {
+  async function loadConnections() {
   const { data, error } = await sb.from('ig_connections').select('*').order('connected_at', { ascending: false });
   if (error) { console.error('loadConnections error:', error); return []; }
   return data || [];
@@ -387,7 +429,26 @@ async function updateLabel(storyMediaId, label) {
   if (error) { console.error(error); toast('Error al guardar label', 'err'); return false; }
   return true;
 }
-async function syncConnection(connId) {
+async function renameSequence(connectionId, seqStart, name) {
+  try {
+    if (!name) {
+      const { error } = await sb.from('sequence_names').delete().eq('connection_id', connectionId).eq('seq_start', seqStart);
+      if (error) { console.error(error); toast('Error al borrar el nombre', 'err'); return false; }
+      return true;
+    }
+    const { error } = await sb.from('sequence_names').upsert({ connection_id: connectionId, seq_start: seqStart, name, updated_at: new Date().toISOString() }, { onConflict: 'connection_id,seq_start' });
+    if (error) { console.error(error); toast('Error al renombrar la secuencia', 'err'); return false; }
+    return true;
+  } catch (e) { console.error(e); toast('Error al renombrar la secuencia', 'err'); return false; }
+}
+  async function searchSequencesByName(query) {
+    const q = (query || '').trim();
+    if (!q) return [];
+    const { data, error } = await sb.rpc('search_sequences_by_name', { p_query: q });
+    if (error) { console.error(error); return []; }
+    return data || [];
+  }
+  async function syncConnection(connId) {
   state.syncing[connId] = true; render();
   try {
     const r = await fetch(`${SUPABASE_URL}/functions/v1/ig-sync-stories?conn=${connId}`, {
@@ -668,6 +729,7 @@ function viewSidebar() {
     ),
     // Account panel (siempre visible: @cuenta + refrescar + desconectar)
     sideAccountPanel(),
+    sideSearchPanel(),
     el('div', { class: 'user-box' },
       el('div', { class: 'user-email' }, state.user?.email || ''),
       el('button', { class: 'logout', onclick: async () => { await sb.auth.signOut(); location.reload(); } }, 'Cerrar sesión')
@@ -675,7 +737,53 @@ function viewSidebar() {
   );
 }
 
-function sideAccountPanel() {
+function sideSearchPanel() {
+  const wrap = el('div', { class: 'side-search' });
+  const row = el('div', { class: 'side-search-row' });
+  row.innerHTML = ICONS.search;
+  const input = el('input', { class: 'side-search-input', type: 'text', placeholder: 'Buscar secuencia...' });
+  row.appendChild(input);
+  const results = el('div', { class: 'side-search-results' });
+  wrap.appendChild(row);
+  wrap.appendChild(results);
+  let debounceTimer = null;
+  const closeResults = () => { results.classList.remove('show'); results.innerHTML = ''; };
+  const runSearch = async (q) => {
+    if (!q || !q.trim()) { closeResults(); return; }
+    const rows = await searchSequencesByName(q.trim());
+    results.innerHTML = '';
+    if (!rows || !rows.length) {
+      results.appendChild(el('div', { class: 'side-search-empty' }, 'Sin resultados'));
+    } else {
+      rows.slice(0, 10).forEach(r => {
+        const item = el('div', { class: 'side-search-item' },
+                        el('div', { class: 'side-search-item-name' }, r.name || fmtDate(r.seq_start)),
+                        el('div', { class: 'side-search-item-date' }, fmtDate(r.seq_start))
+                        );
+        item.onmousedown = (e) => {
+          e.preventDefault();
+          closeResults();
+          input.value = '';
+          state.view = 'detail';
+          state.detail = { cid: r.connection_id, sn: r.seq_num };
+          render();
+        };
+        results.appendChild(item);
+      });
+    }
+    results.classList.add('show');
+  };
+  input.oninput = () => {
+    clearTimeout(debounceTimer);
+    const q = input.value;
+    debounceTimer = setTimeout(() => runSearch(q), 250);
+  };
+  input.onfocus = () => { if (input.value.trim()) results.classList.add('show'); };
+  input.onblur = () => { setTimeout(closeResults, 150); };
+  return wrap;
+}
+  
+  function sideAccountPanel() {
   const conn = state.connections[0];
   const wrap = el('div', { class: 'side-acc' },
     el('div', { class: 'side-acc-label' }, 'Cuenta de Instagram')
@@ -904,33 +1012,62 @@ async function viewDashboard() {
     // Sequences list with real thumbnails
     seqList.innerHTML = '';
     if (!seqs.length) { seqList.appendChild(el('div', { class: 'empty' }, 'No hay secuencias en este rango.')); return; }
-    seqs.slice(0, 20).forEach(s => {
-      const thumb = el('div', { class: 'seq-thumb' });
-      const fallback = el('div', { class: 'seq-thumb-fallback' }, 'AB');
-      const url = s.first_media_storage_url || s.first_media_url || s.first_thumbnail_url;
-      if (url) {
-        const img = el('img', { src: url, alt: '', loading: 'lazy' });
-        attachImageFallback(img, fallback);
-        thumb.appendChild(img);
-        thumb.appendChild(fallback);
-        fallback.style.display = 'none';
-      } else {
-        thumb.appendChild(fallback);
-      }
-      const row = el('div', { class: 'seq-row', onclick: () => { state.view = 'detail'; state.detail = { cid: s.connection_id, sn: s.seq_num }; render(); } },
-        thumb,
-        el('div', { class: 'seq-meta' },
-          el('div', { class: 'seq-date' }, fmtDate(s.seq_start)),
-          el('div', { class: 'seq-time' }, `${fmtTime(s.seq_start)} – ${fmtTime(s.seq_end)}`)
-        ),
-        el('div', { class: 'seq-stat' }, el('div', { class: 'seq-stat-v' }, fmt(s.story_count)), el('div', { class: 'seq-stat-l' }, 'stories')),
-        el('div', { class: 'seq-stat' }, el('div', { class: 'seq-stat-v' }, fmt(s.total_views)), el('div', { class: 'seq-stat-l' }, 'views')),
-        el('div', { class: 'seq-stat' }, el('div', { class: 'seq-stat-v' }, fmt(s.total_reach)), el('div', { class: 'seq-stat-l' }, 'reach')),
-        el('div', { class: 'seq-stat' }, el('div', { class: 'seq-stat-v' }, fmt(s.total_replies)), el('div', { class: 'seq-stat-l' }, 'replies')),
-        (() => { const g = el('div', { class: 'seq-go', title: 'Ver detalle' }); g.innerHTML = ICONS.arrow; return g; })()
-      );
-      seqList.appendChild(row);
-    });
+        seqs.slice(0, 20).forEach(s => {
+          const thumb = el('div', { class: 'seq-thumb' });
+          const fallback = el('div', { class: 'seq-thumb-fallback' }, 'AB');
+          const url = s.first_media_storage_url || s.first_media_url || s.first_thumbnail_url;
+          if (url) {
+            const img = el('img', { src: url, alt: '', loading: 'lazy' });
+            attachImageFallback(img, fallback);
+            thumb.appendChild(img);
+            thumb.appendChild(fallback);
+            fallback.style.display = 'none';
+          } else {
+            thumb.appendChild(fallback);
+          }
+          const nameEl = el('div', { class: 'seq-name' }, s.custom_name || fmtDate(s.seq_start));
+          const renameBtn = el('button', { class: 'seq-rename-btn', title: 'Renombrar secuencia' });
+          renameBtn.innerHTML = ICONS.pencil;
+          const nameRow = el('div', { class: 'seq-name-row' }, nameEl, renameBtn);
+          renameBtn.onclick = (e) => {
+            e.stopPropagation();
+            const input = el('input', { class: 'seq-name-input', type: 'text', value: s.custom_name || '' });
+            input.onclick = (ev) => ev.stopPropagation();
+            nameRow.replaceChild(input, nameEl);
+            input.focus();
+            input.select();
+            const finishEdit = () => { if (nameRow.contains(input)) nameRow.replaceChild(nameEl, input); };
+            const save = async () => {
+              const newName = input.value.trim();
+              const ok = await renameSequence(s.connection_id, s.seq_start, newName);
+              if (ok) {
+                s.custom_name = newName || null;
+                nameEl.textContent = s.custom_name || fmtDate(s.seq_start);
+                toast(newName ? 'Secuencia renombrada' : 'Nombre eliminado', 'ok');
+              }
+              finishEdit();
+            };
+            input.onkeydown = (ev) => {
+              if (ev.key === 'Enter') { ev.preventDefault(); save(); }
+              if (ev.key === 'Escape') { ev.preventDefault(); finishEdit(); }
+            };
+            input.onblur = () => { save(); };
+          };
+          const row = el('div', { class: 'seq-row', onclick: () => { state.view = 'detail'; state.detail = { cid: s.connection_id, sn: s.seq_num }; render(); } },
+                         thumb,
+                         el('div', { class: 'seq-meta' },
+                            nameRow,
+                            el('div', { class: 'seq-date' }, fmtDate(s.seq_start)),
+                            el('div', { class: 'seq-time' }, `${fmtTime(s.seq_start)} – ${fmtTime(s.seq_end)}`)
+                            ),
+                         el('div', { class: 'seq-stat' }, el('div', { class: 'seq-stat-v' }, fmt(s.story_count)), el('div', { class: 'seq-stat-l' }, 'stories')),
+                         el('div', { class: 'seq-stat' }, el('div', { class: 'seq-stat-v' }, fmt(s.total_views)), el('div', { class: 'seq-stat-l' }, 'views')),
+                         el('div', { class: 'seq-stat' }, el('div', { class: 'seq-stat-v' }, fmt(s.total_reach)), el('div', { class: 'seq-stat-l' }, 'reach')),
+                         el('div', { class: 'seq-stat' }, el('div', { class: 'seq-stat-v' }, fmt(s.total_replies)), el('div', { class: 'seq-stat-l' }, 'replies')),
+                         (() => { const g = el('div', { class: 'seq-go', title: 'Ver detalle' }); g.innerHTML = ICONS.arrow; return g; })()
+                         );
+          seqList.appendChild(row);
+        });
   })();
 
   return container;
