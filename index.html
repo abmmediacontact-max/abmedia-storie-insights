@@ -432,8 +432,7 @@ function aggregatePerDay(seqs, fromISO, toISO) {
   const byKey = {};
   seqs.forEach(s => {
     const k = dayKey(s.seq_start);
-    if (!byKey[k]) byKey[k] = { reach: 0, replies: 0, views: 0, story_count: 0, seq_count: 0, first_reach: 0, last_reach: 0, has_completion: false };
-    byKey[k].reach   += Number(s.total_reach   || 0);
+    if (!byKey[k]) byKey[k] = { reach: 0, replies: 0, views: 0, story_count: 0, seq_count: 0, first_reach: 0, last_reach: 0, has_completion: false };    byKey[k].reach   += Number(s.total_reach   || 0);
     byKey[k].views   += Number(s.total_views   || 0);
     byKey[k].replies += Number(s.total_replies || 0);
     byKey[k].story_count += Number(s.story_count || 0);
@@ -739,11 +738,43 @@ function viewFilterBar() {
   return bar;
 }
 
-function startIgConnect() {
-  const url = `${SUPABASE_URL}/functions/v1/ig-oauth-start?redirect=${encodeURIComponent(window.location.origin)}`;
+async function startIgConnect() {
+  const base = `${SUPABASE_URL}/functions/v1/ig-oauth-start?redirect=${encodeURIComponent(window.location.origin)}`;
   toast('Abriendo flujo de conexión de Instagram', 'ok');
-  // Navegación directa (evita popup blocker que bloqueaba window.open silenciosamente)
-  window.location.href = url;
+  const token = state.session?.access_token;
+  if (!token) { toast('Sesión no disponible, recarga la página', 'err'); return; }
+  // La función ig-oauth-start requiere la cabecera Authorization (por eso devolvía
+  // UNAUTHORIZED_NO_AUTH_HEADER al navegar directo con window.location/window.open,
+  // que no pueden enviar cabeceras). Se intenta primero vía fetch autenticado
+  // (misma cabecera que ya usa syncConnection) y se navega a la URL que devuelva.
+  // Si el fetch falla (p. ej. por seguir un redirect cross-origin sin CORS hacia
+  // Meta), se cae a navegación directa pasando el token también como query param
+  // por si la función lo admite como alternativa a la cabecera.
+  try {
+    const res = await fetch(base, {
+      headers: { Authorization: `Bearer ${token}`, apikey: SUPABASE_ANON }
+    });
+    let target = null;
+    const ct = res.headers.get('content-type') || '';
+    if (ct.includes('application/json')) {
+      const data = await res.json().catch(() => null);
+      target = data?.url || data?.redirect_url || data?.authorize_url || null;
+      if (!target && data && data.code) {
+        console.error('ig-oauth-start error', data);
+        toast('Error al conectar: ' + (data.message || data.code), 'err');
+        return;
+      }
+    }
+    if (!target && res.redirected && res.url) target = res.url;
+    if (!target && res.ok && !ct.includes('application/json')) target = res.url;
+    if (target) { window.location.href = target; return; }
+    const txt = await res.text().catch(() => '');
+    console.error('ig-oauth-start: respuesta inesperada', res.status, txt);
+    toast('No se pudo iniciar la conexión con Instagram (' + res.status + ')', 'err');
+  } catch (e) {
+    console.warn('startIgConnect: fetch autenticado falló, probando fallback con token en query', e);
+    window.location.href = `${base}&access_token=${encodeURIComponent(token)}`;
+  }
 }
 
 async function disconnectConnection(connId) {
