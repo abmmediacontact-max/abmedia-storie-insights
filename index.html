@@ -39,8 +39,25 @@ input:focus,select:focus{border-color:var(--accent)}
 .nav-item svg{width:16px;height:16px;flex-shrink:0}
 .user-box{border-top:1px solid var(--border);padding-top:16px;display:flex;flex-direction:column;gap:8px;font-size:12px;color:var(--muted)}
 .user-email{font-size:11px;word-break:break-all;line-height:1.35}
-.logout{background:var(--bg-3);border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:11px;color:var(--muted);text-align:center;transition:.12s}
+.logout{background:var(--bg-3);border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:11px;color:var(--muted);text-align:center;transition:.12s;cursor:pointer}
 .logout:hover{color:var(--red);border-color:var(--red)}
+.side-acc{margin-top:12px;padding-top:12px;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:6px}
+.side-acc-label{font-size:10px;font-weight:600;letter-spacing:.06em;color:var(--muted);text-transform:uppercase;padding:0 4px}
+.side-acc-row{display:flex;align-items:center;gap:6px;background:var(--bg-3);border:1px solid var(--border);border-radius:8px;padding:8px 10px}
+.side-acc-row .dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 0 3px rgba(34,197,94,.2);flex-shrink:0}
+.side-acc-row .dot.warn{background:var(--yellow);box-shadow:0 0 0 3px rgba(234,179,8,.2)}
+.side-acc-row .dot.err{background:var(--red);box-shadow:0 0 0 3px rgba(239,68,68,.2)}
+.side-acc-name{font-size:12px;font-weight:600;color:var(--text);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.side-acc-btns{display:flex;gap:6px}
+.side-icon-btn{flex:1;display:inline-flex;align-items:center;justify-content:center;gap:6px;height:30px;background:var(--bg-3);border:1px solid var(--border);border-radius:6px;font-size:11px;font-weight:600;color:var(--muted);cursor:pointer;transition:.12s;padding:0 8px}
+.side-icon-btn svg{width:12px;height:12px}
+.side-icon-btn:hover{color:var(--accent);border-color:var(--accent)}
+.side-icon-btn.danger:hover{color:var(--red);border-color:var(--red)}
+.side-icon-btn:disabled{cursor:not-allowed;opacity:.55}
+.side-icon-btn:disabled:hover{color:var(--muted);border-color:var(--border)}
+.side-connect-btn{display:flex;align-items:center;justify-content:center;gap:8px;height:36px;background:var(--accent-dim);border:1px solid var(--accent);border-radius:8px;color:var(--accent);font-size:12px;font-weight:600;cursor:pointer;transition:.12s}
+.side-connect-btn svg{width:14px;height:14px}
+.side-connect-btn:hover{background:var(--accent);color:#0a0a0a}
 
 .main{margin-left:240px;flex:1;padding:32px 40px;min-width:0}
 .page-header{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:24px;flex-wrap:wrap}
@@ -207,6 +224,7 @@ input:focus,select:focus{border-color:var(--accent)}
   .brand{padding:0 12px 0 0;border-bottom:none;border-right:1px solid var(--border);margin-bottom:0;margin-right:12px}
   .nav{flex-direction:row;flex-wrap:nowrap}
   .user-box{display:none}
+  .side-acc{display:none}
   .main{margin-left:0;padding:20px}
   .mini-grid{grid-template-columns:1fr}
 }
@@ -292,6 +310,8 @@ const ICONS = {
   sync: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 0115.5-6.4L21 8M21 3v5h-5M21 12a9 9 0 01-15.5 6.4L3 16M3 21v-5h5"/></svg>',
   back: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 6l-6 6 6 6"/></svg>',
   arrow: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M13 6l6 6-6 6"/></svg>',
+  power: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v9M5.6 7.6a9 9 0 1012.8 0"/></svg>',
+  plus:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 5v14M5 12h14"/></svg>',
 };
 
 // --- Data loaders ---
@@ -306,24 +326,25 @@ async function loadSequences(fromISO, toISO) {
   const { data, error } = await sb.rpc('get_sequence_calendar', { from_date: from, to_date: to });
   if (error) { console.error(error); return []; }
   const seqs = data || [];
-  // Enrich each sequence with first-story media URL from ig_story_insights
-  const needsEnrich = seqs.some(s => !(s.first_media_storage_url || s.first_media_url || s.first_thumbnail_url));
-  if (seqs.length && needsEnrich) {
+  // Enrich each sequence with first-story media URL. Los thumbnails viven dentro de raw.story.media_url
+  // porque ig_story_insights no tiene columnas top-level media_url/thumbnail_url/storage_url.
+  if (seqs.length) {
     try {
-      const { data: firstStories } = await sb.from('ig_story_insights')
-        .select('connection_id, seq_num, media_url, thumbnail_url, storage_url, story_ts, position_in_seq')
-        .gte('story_ts', from).lte('story_ts', to)
-        .eq('position_in_seq', 1);
-      const byKey = {};
-      (firstStories || []).forEach(fs => {
-        byKey[`${fs.connection_id}::${fs.seq_num}`] = fs.storage_url || fs.media_url || fs.thumbnail_url || null;
-      });
-      seqs.forEach(s => {
-        const k = `${s.connection_id}::${s.seq_num}`;
-        if (byKey[k] && !(s.first_media_storage_url || s.first_media_url || s.first_thumbnail_url)) {
-          s.first_media_url = byKey[k];
-        }
-      });
+      const startTs = Array.from(new Set(seqs.map(s => s.seq_start).filter(Boolean)));
+      if (startTs.length) {
+        const { data: firstStories } = await sb.from('ig_story_insights')
+          .select('connection_id, story_ts, raw')
+          .in('story_ts', startTs);
+        const byKey = {};
+        (firstStories || []).forEach(fs => {
+          const url = (fs.raw && fs.raw.story && (fs.raw.story.media_url || fs.raw.story.thumbnail_url)) || null;
+          if (url) byKey[`${fs.connection_id}::${fs.story_ts}`] = url;
+        });
+        seqs.forEach(s => {
+          const k = `${s.connection_id}::${s.seq_start}`;
+          if (byKey[k]) s.first_media_url = byKey[k];
+        });
+      }
     } catch (e) { console.warn('first-story enrich failed', e); }
   }
   return seqs;
@@ -332,24 +353,21 @@ async function loadDetail(connectionId, seqNum) {
   const { data, error } = await sb.rpc('get_sequence_detail', { p_connection_id: connectionId, p_seq_num: seqNum });
   if (error) { console.error(error); return []; }
   const stories = data || [];
-  // Enrich each story with media URL from ig_story_insights
-  const needsEnrich = stories.some(s => !(s.storage_url || s.media_url || s.thumbnail_url));
-  if (stories.length && needsEnrich) {
+  // Enrich each story with media URL desde raw.story (columnas top-level no existen en la tabla).
+  if (stories.length) {
     try {
       const ids = stories.map(x => x.story_media_id).filter(Boolean);
       if (ids.length) {
         const { data: media } = await sb.from('ig_story_insights')
-          .select('story_media_id, media_url, thumbnail_url, storage_url')
+          .select('story_media_id, raw')
           .in('story_media_id', ids);
         const byId = {};
-        (media || []).forEach(m => { byId[m.story_media_id] = m; });
+        (media || []).forEach(m => {
+          const url = (m.raw && m.raw.story && (m.raw.story.media_url || m.raw.story.thumbnail_url)) || null;
+          if (url) byId[m.story_media_id] = url;
+        });
         stories.forEach(s => {
-          const m = byId[s.story_media_id];
-          if (m) {
-            s.storage_url   = s.storage_url   || m.storage_url;
-            s.media_url     = s.media_url     || m.media_url;
-            s.thumbnail_url = s.thumbnail_url || m.thumbnail_url;
-          }
+          if (byId[s.story_media_id] && !s.media_url) s.media_url = byId[s.story_media_id];
         });
       }
     } catch (e) { console.warn('detail media enrich failed', e); }
@@ -646,11 +664,55 @@ function viewSidebar() {
         return node;
       })
     ),
+    // Account panel (siempre visible: @cuenta + refrescar + desconectar)
+    sideAccountPanel(),
     el('div', { class: 'user-box' },
       el('div', { class: 'user-email' }, state.user?.email || ''),
       el('button', { class: 'logout', onclick: async () => { await sb.auth.signOut(); location.reload(); } }, 'Cerrar sesión')
     )
   );
+}
+
+function sideAccountPanel() {
+  const conn = state.connections[0];
+  const wrap = el('div', { class: 'side-acc' },
+    el('div', { class: 'side-acc-label' }, 'Cuenta de Instagram')
+  );
+  if (!conn) {
+    const btn = el('button', {
+      class: 'side-connect-btn',
+      onclick: startIgConnect,
+      title: 'Conectar cuenta de Instagram'
+    });
+    btn.innerHTML = `${ICONS.plus}<span>Conectar cuenta</span>`;
+    wrap.appendChild(btn);
+    return wrap;
+  }
+  const busy = !!state.syncing[conn.id];
+  const uname = conn.ig_username || conn.page_name || 'IG';
+  const expiresAt = conn.expires_at ? new Date(conn.expires_at) : null;
+  const daysLeft = expiresAt ? Math.round((expiresAt - new Date()) / (1000*60*60*24)) : null;
+  const dotCls = daysLeft == null ? '' : (daysLeft < 7 ? 'err' : daysLeft < 30 ? 'warn' : '');
+  const row = el('div', { class: 'side-acc-row', title: expiresAt ? `Token expira ${expiresAt.toLocaleDateString('es-ES')}` : '' },
+    el('span', { class: 'dot ' + dotCls }),
+    el('span', { class: 'side-acc-name' }, '@' + uname)
+  );
+  const refresh = el('button', {
+    class: 'side-icon-btn',
+    onclick: () => { if (!busy) syncConnection(conn.id); },
+    disabled: busy ? 'true' : null,
+    title: 'Sincronizar métricas'
+  });
+  refresh.innerHTML = busy ? '<span class="spinner"></span><span>Sync…</span>' : `${ICONS.sync}<span>Refrescar</span>`;
+  const disc = el('button', {
+    class: 'side-icon-btn danger',
+    onclick: () => disconnectConnection(conn.id),
+    title: 'Desconectar cuenta'
+  });
+  disc.innerHTML = `${ICONS.power}<span>Desconectar</span>`;
+  wrap.appendChild(row);
+  wrap.appendChild(el('div', { class: 'side-acc-btns' }, refresh, disc));
+  return wrap;
 }
 
 function viewFilterBar() {
@@ -679,8 +741,22 @@ function viewFilterBar() {
 
 function startIgConnect() {
   const url = `${SUPABASE_URL}/functions/v1/ig-oauth-start?redirect=${encodeURIComponent(window.location.origin)}`;
-  window.open(url, '_blank', 'noopener');
   toast('Abriendo flujo de conexión de Instagram', 'ok');
+  // Navegación directa (evita popup blocker que bloqueaba window.open silenciosamente)
+  window.location.href = url;
+}
+
+async function disconnectConnection(connId) {
+  if (!confirm('¿Desconectar esta cuenta de Instagram? Podrás reconectarla en cualquier momento. Las métricas históricas se mantienen.')) return;
+  try {
+    const { error } = await sb.from('ig_connections').delete().eq('id', connId);
+    if (error) { toast('Error al desconectar: ' + error.message, 'err'); return; }
+    state.connections = state.connections.filter(c => c.id !== connId);
+    toast('Cuenta desconectada', 'ok');
+    render();
+  } catch (e) {
+    toast('Error al desconectar', 'err');
+  }
 }
 
 function connChip() {
