@@ -257,6 +257,7 @@ async function bootSession(user) {
 
 async function init() {
   bind(); bindLogin();
+  setTimeout(() => { if ($('#loginScreen').classList.contains('hidden') && $('#app').classList.contains('hidden') && $('#notAdmin').classList.contains('hidden')) { console.warn('Auth init watchdog: forzando pantalla de login'); showLogin(); } }, 4000);
     try { sb.auth.onAuthStateChange(async (_event, session) => {
     if (session && session.user) await bootSession(session.user);
     else showLogin();
