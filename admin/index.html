@@ -257,13 +257,13 @@ async function bootSession(user) {
 
 async function init() {
   bind(); bindLogin();
-  sb.auth.onAuthStateChange(async (_event, session) => {
+    try { sb.auth.onAuthStateChange(async (_event, session) => {
     if (session && session.user) await bootSession(session.user);
     else showLogin();
-  });
+    }); } catch (e) { console.warn('onAuthStateChange subscribe failed', e); } try {
   const { data } = await sb.auth.getSession();
   if (data.session) await bootSession(data.session.user);
-  else showLogin();
+      else showLogin(); } catch (e) { console.warn('Auth init failed, showing login screen:', e && e.message); showLogin(); }
 }
 document.addEventListener('DOMContentLoaded', init);
 </script>
