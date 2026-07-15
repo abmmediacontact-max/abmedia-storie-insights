@@ -290,7 +290,7 @@ const state = {
   customFrom: null, customTo: null,
   calYear: null, calMonth: null,
   detail: null, connections: [],
-  syncing: {}, lastSyncAt: {},
+  syncing: {}, lastSyncAt: {}, authMode: 'signin',
     connecting: false,
 };
 
@@ -708,7 +708,7 @@ function brandBlock(size = 40) {
 }
 
 function viewAuth() {
-  let email = '', password = '', mode = 'signin';
+  let email = '', password = '';  const mode = state.authMode;
   const wrap = el('div', { class: 'auth-wrap' });
   const card = el('div', { class: 'auth-card' });
   const br = brandBlock(44);
@@ -728,7 +728,7 @@ function viewAuth() {
       if (error) { toast(error.message, 'err'); btn.disabled = false; btn.textContent = 'Crear cuenta'; return; }
       if (!data.session) {
         toast('Cuenta creada. Revisa tu email para confirmar y vuelve a iniciar sesión.', 'ok');
-        mode = 'signin'; render(); return;
+        state.authMode = 'signin'; render(); return;
       }
     }
   }});
@@ -737,7 +737,7 @@ function viewAuth() {
   form.appendChild(el('button', { type: 'submit', class: 'btn btn-primary' }, mode === 'signin' ? 'Entrar' : 'Crear cuenta'));
   card.appendChild(form);
   card.appendChild(el('div', { class: 'auth-alt' },
-    el('button', { onclick: () => { mode = mode === 'signin' ? 'signup' : 'signin'; render(); } },
+    el('button', { type: 'button', onclick: () => { state.authMode = state.authMode === 'signin' ? 'signup' : 'signin'; render(); } },
       mode === 'signin' ? '¿No tienes cuenta? Crear una' : 'Ya tengo cuenta, iniciar sesión'
     )
   ));
